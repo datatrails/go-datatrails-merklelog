@@ -1,0 +1,82 @@
+---
+version: '3'
+
+# Taskfile for working with dockerized azurite
+#
+# See: https://learn.microsoft.com/en-us/azure/storage/blobs/use-azurite-to-run-automated-tests
+# Azurite supports local development and integration testing for services which
+# use the message bus, blob store and ohter azure storage primitives.
+
+vars:
+  # AZURITE_DATA_DIR the --location option for azurite is where data is persisted
+  AZURITE_DATA_DIR: '{{.AZURITE_DATA_DIR | default "../.local/azurite-data"}}'
+  AZURITE_BLOB_PORT: '{{.AZURITE_BLOB_PORT | default "10000"}}'
+  AZURITE_QUEUE_PORT: '{{.AZURITE_QUEUE_PORT | default "10001"}}'
+  AZURITE_TABLE_PORT: '{{.AZURITE_TABLE_PORT | default "11111"}}'
+  AZURITE_CONTAINER_NAME: '{{.AZURITE_CONTAINER_NAME | default "go-datatrails-common-azurite"}}'
+  AZURITE_IMAGE: '{{.AZURITE_IMAGE | default "mcr.microsoft.com/azure-storage/azurite"}}'
+
+tasks:
+  preflight:
+    desc: stops, cleans and re-starts the emulator providing a clean state
+    summary: |
+      stops, cleans and re-starts the emulator providing a clean state
+    cmds:
+      - task: cleanup
+      - task: start
+  start:
+    desc: start azurite azure local storage emulator in a named docker container
+    summary: |
+      Starts the azure local storage emulator service in a docker container
+
+      The following env vars are respected for configuration
+
+      AZURITE_CONTAINER_NAME:
+        The container name to use, default "forestrie-azurite"
+      AZURITE_DATA_DIR:
+        Where the data is persisted, default ".local/azurite-data"
+      AZURITE_BLOB_PORT:
+        Blob service listening port, default "10000"
+      AZURITE_QUEUE_PORT:
+        Queue port, default "10001"
+      AZURITE_TABLE_PORT:
+        Table port, default "11111"
+    cmds:
+      - |
+        AZURITE_DATA_DIR=$(mkdir -p {{.AZURITE_DATA_DIR}} && cd {{.AZURITE_DATA_DIR}} && pwd)
+        echo "AZURITE_DATA_DIR: ${AZURITE_DATA_DIR}"
+        docker run \
+          --name {{.AZURITE_CONTAINER_NAME}} \
+          -p {{.AZURITE_BLOB_PORT}}:10000 \
+          -p {{.AZURITE_QUEUE_PORT}}:10001 \
+          -p {{.AZURITE_TABLE_PORT}}:11111 \
+          -dt -u $(id -u):$(id -g) \
+          --mount type=bind,src=${AZURITE_DATA_DIR},dst=/data \
+          {{.AZURITE_IMAGE}} \
+          {{.CLI_ARGS}}
+
+  stop:
+    desc: stop azurite azure local storage emulator docker container
+    summary: |
+      Stops the azure local storage emulator service
+    cmds:
+      - docker rm -f {{.AZURITE_CONTAINER_NAME}}
+
+  cleanup:
+    desc: |
+      stop the container and DELETE the data directory identified by AZURITE_DATA_DIR
+    summary: |
+      Stops the azure local storage emulator service
+    deps: [stop]
+    cmds:
+      - |
+        # 
+        [[ -z "{{.AZURITE_DATA_DIR}}" ]] && exit 0
+
+        echo "deleting data at {{.AZURITE_DATA_DIR}}"
+        rm -vrf {{.AZURITE_DATA_DIR}}
+
+  logs:
+    desc: follow the logs of the azurite container
+    cmds:
+      - docker logs -f {{.AZURITE_CONTAINER_NAME}}
