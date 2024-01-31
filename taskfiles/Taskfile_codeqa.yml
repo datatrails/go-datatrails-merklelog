@@ -1,0 +1,45 @@
+---
+# All targets that support linting and code analysis.
+# DO NOT PUT CLEAN TARGETS or other developer conveniences in here
+
+version: '3'
+
+# Environment variables set for all commands.
+env_build: &env_build
+  # XDG_CACHE_HOME: This may need to be set for python builds, but try to use
+  # virtual env instead.
+
+  # The GOCACHE in a linux container on Docker for windows MUST be on a linuxy
+  # file system
+  GOCACHE: /tmp/jitsuin/go-datatrails-merklelog
+
+vars:
+
+  # Optional setting for some of the qa checks - set to -v
+  VERBOSE: ""
+  UNITTEST_DIR: "test_results"
+  # empty or -tag tag1,tag2 ...
+  GO_TEST_TAGS_OPT: ""
+
+tasks:
+
+  format:
+    desc: Quality assurance of code
+    summary: "format sources (go fmt)"
+    cmds:
+      - gofmt -l -s -w .
+
+  lint:
+    desc: Quality assurance of code
+    cmds:
+      - |
+        golangci-lint --version
+        go vet ./...
+        goimports {{.VERBOSE}} -w .
+        golangci-lint {{.VERBOSE}} run --timeout 10m ./...
+        gofmt -l -s -w .
+
+  unit-tests:
+    desc: "run unit tests"
+    cmds:
+      - go test {{.GO_TEST_TAGS}} ./...

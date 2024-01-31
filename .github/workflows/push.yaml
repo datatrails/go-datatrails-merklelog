@@ -1,0 +1,43 @@
+name: Quality Control
+
+on: [pull_request]
+
+jobs:
+  build:
+    name: Quality Control
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: false
+      - name: Check formatting
+        uses: Jerome1337/gofmt-action@v1.0.5
+        with:
+          gofmt-path: './'
+          gofmt-flags: '-l -d'
+      - name: Check imports
+        uses: DarthBenro008/goimports-check-action@v0.1.0
+        with:
+          root-path: './'
+      - name: go vet
+        run: |
+          go vet ./...
+      - name: Lint checks
+        uses: golangci/golangci-lint-action@v3
+        with:
+          # Require: The version of golangci-lint to use.
+          # When `install-mode` is `binary` (default) the value can be v1.2 or v1.2.3 or `latest` to use the latest version.
+          # When `install-mode` is `goinstall` the value can be v1.2.3, `latest`, or the hash of a commit.
+          version: v1.54
+      - name: Install Task
+        uses: arduino/setup-task@v1
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and Test
+        run: |
+          task build
+          task test
+

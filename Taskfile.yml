@@ -1,0 +1,48 @@
+---
+version: '3'
+
+# This Taskfile represents the primary control surface for developers interacting with
+# this component.
+#
+# Primary "configure/build/deploy/test" tasks must be provided directly in this top level
+# taskfile
+#
+# Infrequently used or pure sub-tasks should be in subservient taskfiles and included
+# here.
+#
+# All tasks that are expected to be run directly by developers must have a meaningful
+# 'desc' with all optional variables defined, in this file or in included files.
+#
+# All tasks that are internal sub-tasks only should have a meaningful 'summary'.
+#
+includes:
+  codeqa:
+    taskfile: ./taskfiles/Taskfile_codeqa.yml
+  azurite:
+    taskfile: ./taskfiles/Taskfile_azurite.yml
+    dir: ./taskfiles
+
+tasks:
+
+  test:preflight:
+    desc: do all necessary cleanup and preparation for a test run
+    cmds:
+      - task: azurite:preflight
+
+  qa-basic:
+    desc: |
+      format the source and run all the quality checks
+      (Does not run unit tests)
+    cmds:
+      - task: codeqa:format
+      - task: codeqa:lint
+
+  build:
+    desc: ensure go build works for all packages
+    cmds:
+      - go build -v ./...
+
+  test:
+    desc: run the tests
+    cmds:
+      - task: codeqa:unit-tests
