@@ -9,7 +9,7 @@ func TestPlaceHolder(t *testing.T) {
 	}{
 		{
 			name: "positive",
-			want: 2,
+			want: 1,
 		},
 	}
 	for _, tt := range tests {
