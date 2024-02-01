@@ -10,12 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func printNodes(db *testDb, prefix string, iNodes ...uint64) {
-	for i := 0; i < len(iNodes); i++ {
-		fmt.Printf("%s%x\n", prefix, db.mustGet(iNodes[i]))
-	}
-}
-
 func getNodes(db *testDb, iNodes ...uint64) [][]byte {
 	var hashes [][]byte
 	for i := 0; i < len(iNodes); i++ {
@@ -141,10 +135,7 @@ func TestVerify(t *testing.T) {
 		require.NoError(t, err)
 		if mmrSize == 1 {
 			// special case
-			if proof == nil {
-				return true
-			}
-			return false
+			return proof == nil
 		}
 		return VerifyInclusion(mmrSize, hasher, nodeHash, iNode, proof, root)
 	}
@@ -229,11 +220,11 @@ func TestVerify(t *testing.T) {
 		},
 		{
 			"edge case, prove the first leaf in the tree",
-			args{26, H(1 - 1), 0, getProof(26, 0)}, true, nil,
+			args{26, H(0), 0, getProof(26, 0)}, true, nil,
 		},
 		{
 			"edge case, prove a singleton",
-			args{1, H(1 - 1), 1, getProof(1, 0)}, true, nil,
+			args{1, H(0), 1, getProof(1, 0)}, true, nil,
 		},
 	}
 	for _, tt := range tests {
