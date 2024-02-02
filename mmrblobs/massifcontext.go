@@ -99,10 +99,10 @@ func (mc *MassifContext) StartNextMassif() error {
 	// re-create Start for the new blob
 
 	var err error
-	// This enables a strict guarantee of uniqueness per tenant that is
+	// This enables a strict guarantee of uniqueness per log that is
 	// enforced even in the face of the process restart + ip re-use + bad clocks
-	// corner case. No matter what, we will never add an entry to a tenants mmr
-	// that duplicates another snowflake id for that tenant
+	// corner case. No matter what, we will never add an entry to an mmr
+	// that isn't strictly greater than all others in the log.
 	mc.lastIDPreviousBlob, err = mc.GetLastSnowflakeID()
 	if err != nil {
 		return err
