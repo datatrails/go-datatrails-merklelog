@@ -99,6 +99,7 @@ var (
 
 type MassifStart struct {
 	MassifHeight uint8
+	pad0         uint8
 	Version      uint16
 	Epoch        uint32
 	MassifIndex  uint32
