@@ -12,9 +12,9 @@ import "hash"
 // A reference introducing the concept of consistency proofs in merkle trees:
 // https://pangea.cloud/docs/audit/merkle-trees#outline-consistency-proof
 type ConsistencyProof struct {
-	MMRSizeA uint64
-	MMRSizeB uint64
-	Path     [][]byte
+	MMRSizeA uint64   `cbor:"1,keyasint"`
+	MMRSizeB uint64   `cbor:"2,keyasint"`
+	Path     [][]byte `cbor:"3,keyasint"`
 }
 
 // IndexConsistencyProof creates a proof that mmr B appends to mmr A.
