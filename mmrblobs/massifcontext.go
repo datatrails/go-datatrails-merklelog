@@ -222,7 +222,7 @@ func (mc MassifContext) GetPeakStack() ([]byte, error) {
 //	   | massif 0 |  massif 1 .  | massif 2 ....>
 //
 // This method satisfies the Get method of the MMR NodeAdder interface
-func (mc MassifContext) Get(i uint64) ([]byte, error) {
+func (mc *MassifContext) Get(i uint64) ([]byte, error) {
 
 	// Normal case, reference to a node included in the current massif
 	if i >= mc.Start.FirstIndex {
