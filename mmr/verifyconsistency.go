@@ -76,3 +76,24 @@ func VerifyConsistency(
 	// Note: only return true if we have verified the complete path.
 	return ok && len(path) == 0
 }
+
+// CheckConsistency is used to check that a new log update is consistent With
+// respect to some previously known root and the current store.
+func CheckConsistency(
+	store indexStoreGetter, hasher hash.Hash,
+	cp ConsistencyProof, rootA []byte) (bool, []byte, error) {
+
+	iPeaks := Peaks(cp.MMRSizeA)
+	peakHashesA, err := PeakBagRHS(store, hasher, 0, iPeaks)
+	if err != nil {
+		return false, nil, err
+	}
+
+	rootB, err := GetRoot(cp.MMRSizeB, store, hasher)
+	if err != nil {
+		return false, nil, err
+	}
+
+	return VerifyConsistency(
+		hasher, peakHashesA, cp, rootA, rootB), rootB, nil
+}

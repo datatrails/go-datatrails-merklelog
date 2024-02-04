@@ -3,8 +3,6 @@ package mmrblobs
 import (
 	"encoding/binary"
 	"errors"
-
-	"github.com/google/uuid"
 )
 
 const (
@@ -12,12 +10,12 @@ const (
 	KeyBitSizeLogBase2  = 8
 	KeyByteSizeLogBase2 = 5
 
-	EventIDFirst     = 0
-	EventIDEnd       = EventIDFirst + 16
-	SnowflakeIdFirst = 24
-	SnowflakeIdEnd   = SnowflakeIdFirst + 8
-	AssetIDFirst     = SnowflakeIdEnd
-	AssetIDEnd       = AssetIDFirst + 16
+	EntryKeyRandomPrefixFirst = 0
+	EntryKeyRandomPrefixEnd   = EntryKeyRandomPrefixFirst + 16
+	SnowflakeIdFirst          = 24
+	SnowflakeIdEnd            = SnowflakeIdFirst + 8
+	ApplicationDataFirst      = SnowflakeIdEnd
+	ApplicationDataEnd        = ApplicationDataFirst + 16
 )
 
 var (
@@ -44,11 +42,11 @@ func GetIndexSnowflakeID(
 
 // NewIndexEntry creates an index entry directly from the required components
 func NewIndexEntry(
-	assetId uuid.UUID, eventId uuid.UUID, snowflakeId uint64,
+	randomPrefix16 []byte, snowflakeId uint64, appData16 []byte,
 ) []byte {
 	index := [IndexEntryBytes]byte{}
 
-	SetIndexEntry(index[:], 0, assetId, eventId, snowflakeId)
+	SetIndexEntry(index[:], 0, randomPrefix16, snowflakeId, appData16)
 	return index[:]
 }
 
@@ -58,15 +56,15 @@ func NewIndexEntry(
 // | event uuid| reserved | reserved (epoch) | snowflakeid|
 // | 0  -   15 | 16 -   22|     23           | 24   -   31|
 // |     16    |     7    |     1            |      8     |
-// | asset uuid|        reserved        |
-// | 256 -  384| 384 -           -  512 |
-// |     16    |           16           |
+// | application data     |     reserved                  |
+// | 256          -  383  | 384                     - 512 |
+// |     16               |                  16           |
 func SetIndexEntry(
 	data []byte, offset uint64,
-	assetId uuid.UUID, eventId uuid.UUID, snowflakeId uint64,
+	randomPrefix16 []byte, snowflakeId uint64, appData16 []byte,
 ) {
-	copy(data[offset+EventIDFirst:offset+EventIDEnd], eventId[:])
-	copy(data[offset+AssetIDFirst:offset+AssetIDEnd], assetId[:])
+	copy(data[offset+EntryKeyRandomPrefixFirst:offset+EntryKeyRandomPrefixEnd], randomPrefix16[:])
+	copy(data[offset+ApplicationDataFirst:offset+ApplicationDataEnd], appData16[:])
 
 	binary.BigEndian.PutUint64(data[offset+SnowflakeIdFirst:offset+SnowflakeIdEnd], snowflakeId)
 }

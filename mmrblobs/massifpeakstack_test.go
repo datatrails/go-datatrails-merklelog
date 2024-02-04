@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/datatrails/forestrie/triecommon/testgenerator"
 	"github.com/datatrails/go-datatrails-merklelog/mmr"
+	"github.com/datatrails/go-datatrails-merklelog/testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

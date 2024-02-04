@@ -2,30 +2,19 @@ package mmrblobs
 
 import (
 	"context"
-	"time"
 
 	"github.com/datatrails/go-datatrails-common/azblob"
 	"github.com/datatrails/go-datatrails-common/logger"
 	"github.com/datatrails/go-datatrails-merklelog/mmr"
 )
 
-type massifReader interface {
-	Reader(
-		ctx context.Context,
-		identity string,
-		opts ...azblob.Option,
-	) (*azblob.ReaderResponse, error)
-
-	List(ctx context.Context, opts ...azblob.Option) (*azblob.ListerResponse, error)
-}
-
 type MassifReader struct {
 	log   logger.Logger
-	store massifReader
+	store logBlobReader
 }
 
-func NewMassifReader(log logger.Logger, store massifReader) *MassifReader {
-	r := &MassifReader{
+func NewMassifReader(log logger.Logger, store logBlobReader) MassifReader {
+	r := MassifReader{
 		log:   log,
 		store: store,
 	}
@@ -38,22 +27,41 @@ func (mr *MassifReader) GetMassif(
 ) (MassifContext, error) {
 
 	var err error
-	var rr *azblob.ReaderResponse
 	mc := MassifContext{
 		TenantIdentity: tenantIdentity,
-		BlobPath:       TenantMassifBlobPath(tenantIdentity, massifIndex),
+		LogBlobContext: LogBlobContext{
+			BlobPath: TenantMassifBlobPath(tenantIdentity, massifIndex),
+		},
 	}
-
-	rr, mc.Data, err = BlobRead(ctx, mc.BlobPath, mr.store, opts...)
+	err = mc.ReadData(ctx, mr.store, opts...)
 	if err != nil {
 		return MassifContext{}, err
 	}
-	mc.Tags = rr.Tags
-	mc.ETag = *rr.ETag
-	mc.LastRead = time.Now()
-	mc.LastModfified = *rr.LastModified
 
 	err = mc.Start.UnmarshalBinary(mc.Data)
+	if err != nil {
+		return MassifContext{}, err
+	}
+	return mc, nil
+}
+
+func (mr *MassifReader) GetHeadMassif(
+	ctx context.Context, tenantIdentity string,
+	opts ...azblob.Option,
+) (MassifContext, error) {
+
+	var err error
+	blobPrefixPath := TenantMassifPrefix(tenantIdentity)
+
+	mc := MassifContext{
+		TenantIdentity: tenantIdentity,
+	}
+	mc.LogBlobContext, _, err = LastPrefixedBlob(ctx, mr.store, blobPrefixPath)
+	if err != nil {
+		return MassifContext{}, err
+	}
+
+	err = mc.ReadData(ctx, mr.store, opts...)
 	if err != nil {
 		return MassifContext{}, err
 	}

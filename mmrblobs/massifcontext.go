@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"time"
 
 	"github.com/datatrails/go-datatrails-merklelog/mmr"
 )
@@ -62,12 +61,8 @@ var (
 // Massif Root Index      = (1 << h) - 2
 // Massif Last Leaf Index = (1 << h) - h - 1
 type MassifContext struct {
+	LogBlobContext
 	TenantIdentity string
-	BlobPath       string
-	Tags           map[string]string
-	ETag           string
-	LastRead       time.Time
-	LastModfified  time.Time
 
 	// This context deals with the three different massif states:
 	// 1. no blobs exist                                   -> creating = true
@@ -78,7 +73,6 @@ type MassifContext struct {
 	// Read from the first log entry in the blob. If Creating is true and Found
 	// > 0, this is the Start header of the *previous* massif
 	Start MassifStart
-	Data  []byte
 
 	// the following properties are for dealing with addition of the last leaf
 	// in the massif they are only valid during the call to AddHashedLeaf which
