@@ -53,7 +53,7 @@ func VerifyInclusion(
 //
 // This method exists for the situation where multiple, possibly related, proofs
 // are catenated together in the same path. As they are in log consistency proofs.
-// See [datatrails/forestrie/go-forestrie/triecommon/mmr/VerifyInclusion] for further details.
+// See [datatrails/forestrie/go-forestrie/merklelog/mmr/VerifyInclusion] for further details.
 //
 // Returns
 //

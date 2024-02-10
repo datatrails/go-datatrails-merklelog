@@ -1,8 +1,4 @@
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/datatrails/go-datatrails-common v0.12.3 h1:eWZ++IvbHu/7vnF6reFXLGxM0EiK/hA9tO6GvP5vOFk=
-github.com/datatrails/go-datatrails-common v0.12.3/go.mod h1:Wuzr1lpVQ3Y1/Gr3fi3Q7maE9K++TbEe3QaMeLcUQQc=
-github.com/datatrails/go-datatrails-common v0.12.4 h1:91dUe0WgftxyXO1a9mSR+uVJe3AktOL+B6t0L1+D2CI=
-github.com/datatrails/go-datatrails-common v0.12.4/go.mod h1:Wuzr1lpVQ3Y1/Gr3fi3Q7maE9K++TbEe3QaMeLcUQQc=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=

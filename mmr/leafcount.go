@@ -6,7 +6,7 @@ import (
 )
 
 // LeafCount returns the number of leaves in the largest mmr whose size is <=
-// the supplied size. See also [triecommon/mmr/PeakBitmap]
+// the supplied size. See also [merklelog/mmr/PeakBitmap]
 func LeafCount(size uint64) uint64 {
 	return PeaksBitmap(size)
 }

@@ -8,7 +8,7 @@ import (
 // VerifyConsistency returns true if the mmr log update from mmr a to mmr b is
 // append only.  This means that the new log contains an exact copy of the
 // previous log, with any new nodes appended after. The proof is created by
-// [datatrails/forestrie/go-forestrie/triecommon/mmr/IndexConsistencyProof]
+// [datatrails/forestrie/go-forestrie/merklelog/mmr/IndexConsistencyProof]
 //
 // The proof comprises an single path which contains an inclusion proof for each
 // peak node in the old mmr against the new mmr root. As all mmr interior nodes
