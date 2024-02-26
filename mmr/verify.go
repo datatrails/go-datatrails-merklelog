@@ -66,6 +66,11 @@ func VerifyFirstInclusionPath(
 	peaks := Peaks(mmrSize)
 	peakMap := map[uint64]bool{}
 
+	// Deal with the degenerate case where iNode is a perfect peak. The proof will be nil.
+	if len(proof) == 0 && bytes.Compare(leafHash, root) == 0 {
+		return true, 0
+	}
+
 	height := IndexHeight(iNode) // allows for proofs of interior nodes
 	pos := iNode + 1
 	elementHash := leafHash
@@ -130,7 +135,7 @@ func VerifyFirstInclusionPath(
 			// we are still processing the local peak proof.
 			pos += 1
 			if pos <= localPeak {
-				hashWriteUint64(hasher, pos) // pos is now the parent pos, which was also the commit value
+				HashWriteUint64(hasher, pos) // pos is now the parent pos, which was also the commit value
 			}
 			hasher.Write(p)
 			hasher.Write(elementHash)
@@ -141,10 +146,11 @@ func VerifyFirstInclusionPath(
 			// we are still processing the local peak proof.
 			pos += 2 << height
 			if pos <= localPeak {
-				hashWriteUint64(hasher, pos) // pos is now the parent pos, which was also the commit value
+				HashWriteUint64(hasher, pos) // pos is now the parent pos, which was also the commit value
 			}
 			hasher.Write(elementHash)
 			hasher.Write(p)
+
 		}
 
 		elementHash = hasher.Sum(nil)

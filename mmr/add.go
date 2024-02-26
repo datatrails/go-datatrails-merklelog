@@ -61,7 +61,7 @@ func AddHashedLeaf(store NodeAppender, hasher hash.Hash, hashedLeaf []byte) (uin
 		// For interior nodes, commit to the position to provide for non
 		// equivocal proof of position see: ref:
 		// https://github.com/proofchains/python-proofmarshal/blob/master/proofmarshal/mmr.py#L142
-		hashWriteUint64(hasher, i+1)
+		HashWriteUint64(hasher, i+1)
 
 		var value []byte
 

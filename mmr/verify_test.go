@@ -18,8 +18,8 @@ func getNodes(db *testDb, iNodes ...uint64) [][]byte {
 	return hashes
 }
 
-// TestVerify38 check that we can obtain and verify proofs for all 38 nodes
-func TestVerify38(t *testing.T) {
+// TestVerifyLeavesIn38 check that we can obtain and verify proofs for all 38 leaves
+func TestVerifyLeavesIn38(t *testing.T) {
 	hasher := sha256.New()
 	db := NewCanonicalTestDB(t)
 	mmrSize := db.Next()
@@ -51,6 +51,85 @@ func TestVerify38(t *testing.T) {
 	// fmt.Printf("VerifyInclusion() ok size=%d, leaves=%d, ok=%d\n", mmrSize, numLeafs, verifiedOk)
 }
 
+// TestVerify38 check that we can obtain and verify proofs for all 38 *nodes*
+func TestVerify38(t *testing.T) {
+	hasher := sha256.New()
+	db := NewCanonicalTestDB(t)
+	mmrSize := db.Next()
+
+	root, err := GetRoot(mmrSize, db, hasher)
+	if err != nil {
+		t.Errorf("GetRoot() err: %v", err)
+	}
+
+	verifiedOk := uint64(0)
+	for iNode := uint64(0); iNode < mmrSize; iNode++ {
+		// for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
+		// iNode := TreeIndex(iLeaf)
+
+		proof, err := IndexProof(mmrSize, db, hasher, iNode)
+		require.NoError(t, err)
+
+		nodeHash, err := db.Get(iNode)
+		require.NoError(t, err)
+
+		if !VerifyInclusion(mmrSize, hasher, nodeHash, iNode, proof, root) {
+			fmt.Printf("%d %d VerifyInclusion() failed\n", iNode, iNode)
+		} else {
+			verifiedOk++
+		}
+	}
+	assert.Equal(t, verifiedOk, mmrSize)
+	// fmt.Printf("VerifyInclusion() ok size=%d, leaves=%d, ok=%d\n", mmrSize, numLeafs, verifiedOk)
+}
+
+// TestVerifyPerfectRoots checks we can produce and verify proofs for the
+// perfect peaks, which should be just the peaks them selves
+func TestVerifyPerfectRoots(t *testing.T) {
+	hasher := sha256.New()
+
+	verifiedOk := 0
+
+	sizes := []uint64{3, 7, 15, 31, 63}
+	for _, mmrSize := range sizes {
+		db := NewGeneratedTestDB(t, mmrSize)
+
+		root, err := GetRoot(mmrSize, db, hasher)
+		if err != nil {
+			t.Errorf("GetRoot() err: %v", err)
+		}
+
+		iNode := mmrSize - 1
+		proof, err := IndexProof(mmrSize, db, hasher, iNode)
+		require.NoError(t, err)
+
+		nodeHash, err := db.Get(iNode)
+		require.NoError(t, err)
+
+		if !VerifyInclusion(mmrSize, hasher, nodeHash, iNode, proof, root) {
+			fmt.Printf("%d %d VerifyInclusion() failed\n", iNode, iNode)
+		} else {
+			verifiedOk++
+		}
+	}
+	assert.Equal(t, verifiedOk, len(sizes))
+	// fmt.Printf("VerifyInclusion() ok size=%d, leaves=%d, ok=%d\n", mmrSize, numLeafs, verifiedOk)
+}
+
+func TestVerifyIndex30InSize63(t *testing.T) {
+
+	hasher := sha256.New()
+	// 63 is the first mmr with a hieght of 5 (and so is a perfect peak)
+	db := NewGeneratedTestDB(t, 63)
+	root, err := GetRoot(63, db, hasher)
+	require.NoError(t, err)
+	peakProof, err := IndexProof(63, db, hasher, 30)
+	require.NoError(t, err)
+	peakHash := db.mustGet(30)
+	ok := VerifyInclusion(63, hasher, peakHash, 30, peakProof, root)
+	assert.True(t, ok)
+}
+
 // TestReVerify38ForAllSizes
 // Test that as the mmr grows, the previously verified nodes continue to be
 // provable and verifiable.  Note that the proofs will be different as the tree
@@ -60,7 +139,8 @@ func TestVerify38(t *testing.T) {
 // bug-9026
 func TestReVerify38ForAllSizes(t *testing.T) {
 	hasher := sha256.New()
-	db := NewCanonicalTestDB(t)
+	// db := NewCanonicalTestDB(t)
+	db := NewGeneratedTestDB(t, 63)
 	maxMMRSize := db.Next()
 	numLeafs := LeafCount(maxMMRSize)
 

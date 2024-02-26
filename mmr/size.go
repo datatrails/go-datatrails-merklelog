@@ -11,6 +11,6 @@ func HeightMaxIndex(heightIndex uint64) uint64 {
 }
 
 // HeightSize returns the size of the mmr with the provided height
-func HeightSize(heightIndex uint64) uint64 {
-	return (1 << heightIndex) - 1
+func HeightSize(height uint64) uint64 {
+	return (1 << height) - 1
 }

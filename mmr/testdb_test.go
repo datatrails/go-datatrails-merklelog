@@ -1,9 +1,15 @@
 package mmr
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
+	"hash"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testDb struct {
@@ -12,12 +18,67 @@ type testDb struct {
 	next  uint64
 }
 
+func hashWriteUint64(hasher hash.Hash, value uint64) {
+	b := [8]byte{}
+	binary.BigEndian.PutUint64(b[:], value)
+	hasher.Write(b[:])
+}
+
 func NewTestDb(t *testing.T) *testDb {
 	db := testDb{
 		t: t, store: make(map[uint64][]byte),
 		next: uint64(0),
 	}
 	return &db
+}
+
+func NewGeneratedTestDB(t *testing.T, mmrSize uint64) *testDb {
+	db := &testDb{
+		t: t, store: make(map[uint64][]byte),
+	}
+	leafCount := LeafCount(mmrSize)
+	for i := uint64(0); i < leafCount; i++ {
+		_, err := AddHashedLeaf(db, sha256.New(), hashNum(TreeIndex(i)))
+		require.NoError(t, err)
+	}
+	return db
+}
+
+// TestNode30ProofInSize63 this tests a very special case in the consistency
+// proofs, which caused a lot of confusion, works in a raw mmr (rather than the
+// blobbed version)
+func TestNode30ProofInSize63(t *testing.T) {
+
+	db := NewGeneratedTestDB(t, 63)
+	n30 := db.mustGet(30)
+	n61 := db.mustGet(61) // the only element in the proof
+	root := db.mustGet(62)
+
+	h := sha256.New()
+	hashWriteUint64(h, 63)
+	h.Write(n30)
+	h.Write(n61)
+	result := h.Sum(nil)
+	ok := bytes.Equal(result, root)
+	assert.True(t, ok)
+}
+
+// TestGeneratedTestDB tests that the generated db matches the canonical db if
+// we generate the same size.
+func TestGeneratedTestDB(t *testing.T) {
+	canon := NewCanonicalTestDB(t)
+	mmrSize := canon.Next()
+	db := NewGeneratedTestDB(t, mmrSize)
+
+	ok := uint64(0)
+	for i := uint64(0); i < mmrSize; i++ {
+		if bytes.Compare(canon.mustGet(i), db.mustGet(i)) != 0 {
+			fmt.Printf("%d %d\n", i, LeafCount(i))
+			continue
+		}
+		ok++
+	}
+	assert.Equal(t, ok, mmrSize)
 }
 
 // NewCanonicalTestDB populates a test data base with mmr size = 39 and where
@@ -69,7 +130,8 @@ func NewCanonicalTestDB(t *testing.T) *testDb {
 	// XXX: TODO update this for position commitment in interior nodes
 	db := testDb{
 		t: t, store: make(map[uint64][]byte),
-		next: uint64(19),
+		// next: uint64(19),
+		next: uint64(39),
 	}
 
 	// height 0 (the leaves)
@@ -81,7 +143,7 @@ func NewCanonicalTestDB(t *testing.T) *testDb {
 	db.put(8, hashNum(8))
 	db.put(10, hashNum(10))
 	db.put(11, hashNum(11))
-	db.put(15, hashNum(12))
+	db.put(15, hashNum(15))
 	db.put(16, hashNum(16))
 	db.put(18, hashNum(18))
 	db.put(19, hashNum(19))

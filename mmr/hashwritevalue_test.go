@@ -38,7 +38,7 @@ func Test_hashWriteUint64(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			hasher := sha256.New()
-			hashWriteUint64(hasher, tt.args.value)
+			HashWriteUint64(hasher, tt.args.value)
 			got := hasher.Sum(nil)
 			if !bytes.Equal(got, tt.want) {
 				t.Errorf("got %x, want %x", got, tt.want)

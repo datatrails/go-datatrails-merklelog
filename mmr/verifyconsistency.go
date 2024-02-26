@@ -84,11 +84,14 @@ func CheckConsistency(
 	cp ConsistencyProof, rootA []byte) (bool, []byte, error) {
 
 	iPeaks := Peaks(cp.MMRSizeA)
+
+	// logger.Sugar.Infof(".... PeakBagRHS: %v", iPeaks)
 	peakHashesA, err := PeakBagRHS(store, hasher, 0, iPeaks)
 	if err != nil {
 		return false, nil, err
 	}
 
+	// logger.Sugar.Infof(".... GetRoot")
 	rootB, err := GetRoot(cp.MMRSizeB, store, hasher)
 	if err != nil {
 		return false, nil, err

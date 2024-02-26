@@ -83,7 +83,7 @@ func testMinimal(t *testing.T, hasher hash.Hash, store *testDb) {
 func TestIndexConsistencyProof(t *testing.T) {
 
 	hasher := sha256.New()
-	store := NewCanonicalTestDB(t)
+	store := NewGeneratedTestDB(t, 63)
 
 	testMinimal(t, hasher, store)
 
@@ -104,6 +104,26 @@ func TestIndexConsistencyProof(t *testing.T) {
 			args: args{
 				mmrSizeA: 11,
 				mmrSizeB: 18,
+			},
+			wantProof:    ConsistencyProof{},
+			wantProofErr: false,
+			wantVerify:   true,
+		},
+		{
+			name: "7 to 15",
+			args: args{
+				mmrSizeA: 7,
+				mmrSizeB: 15,
+			},
+			wantProof:    ConsistencyProof{},
+			wantProofErr: false,
+			wantVerify:   true,
+		},
+		{
+			name: "7 to 63",
+			args: args{
+				mmrSizeA: 7,
+				mmrSizeB: 63,
 			},
 			wantProof:    ConsistencyProof{},
 			wantProofErr: false,
