@@ -98,7 +98,6 @@ func TestIndexConsistencyProof(t *testing.T) {
 		wantProofErr bool
 		wantVerify   bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "11 to 18",
 			args: args{

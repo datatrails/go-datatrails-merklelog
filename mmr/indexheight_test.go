@@ -246,7 +246,6 @@ func TestMaxPeakHeight(t *testing.T) {
 		args args
 		want uint64
 	}{
-		// TODO: Add test cases.
 		{args{0}, 0},
 		{args{9}, 2},
 		{args{13}, 2},
