@@ -3,11 +3,15 @@ package massifs
 import "fmt"
 
 const (
-	V1MMRPrefix                      = "v1/mmrs"
-	V1MMRTenantPrefix                = "v1/mmrs/tenant"
+	V1MMRPrefix       = "v1/mmrs"
+	V1MMRTenantPrefix = "v1/mmrs/tenant"
+
+	V1MMRPathSep                     = "/"
+	V1MMRExtSep                      = "."
+	V1MMRMassifExt                   = "log"
 	V1MMRBlobNameFmt                 = "%016d.log"
 	V1MMRSignedTreeHeadBlobNameFmt   = "%016d.sth"
-	V1MMSealSignedRoot               = "sth" // Signed Tree Head
+	V1MMRSealSignedRootExt           = "sth" // Signed Tree Head
 	V1MMRConsistencyProofBlobNameFmt = "%016d.cproof"
 	V1MMRSealCPROOF                  = "cproof" // Consistency Proof
 	// LogInstanceN refers to the approach for handling blob size and format changes discussed at
