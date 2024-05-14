@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/datatrails/forestrie/go-forestrie/merklelog/snowflakeid"
+	"github.com/datatrails/forestrie/go-forestrie/massifs/snowflakeid"
 	"github.com/datatrails/forestrie/go-forestrie/mmr"
 	"github.com/datatrails/go-datatrails-common/logger"
 )

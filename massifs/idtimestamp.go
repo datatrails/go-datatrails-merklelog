@@ -9,6 +9,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
+	"time"
+
+	"github.com/datatrails/forestrie/go-forestrie/massifs/snowflakeid"
 )
 
 var (
@@ -28,6 +31,51 @@ var (
 func IDTimestampToHex(id uint64, epoch uint8) string {
 	b := IDTimestampBytes(id, epoch)
 	return hex.EncodeToString(b)
+}
+
+// IDTimeHex returns the hex string idtimestamp corresponding to the time
+func IDTimeHex(t time.Time) string {
+	id, epoch := IDTimestampFromTime(t)
+	return IDTimestampToHex(id, epoch)
+}
+
+// IDToTimeParts performs a lossy, but accurate, conversion to seconds and sub-second nanos.
+func IDToTimeParts(id uint64) (int64, int64, []byte) {
+
+	ms := id >> snowflakeid.TimeShift
+
+	machineSeq := make([]byte, 4)
+
+	binary.BigEndian.PutUint32(machineSeq, uint32(id&(^snowflakeid.TimeMask)))
+
+	return int64(ms / 1000), int64(ms % 1000), machineSeq[1:]
+}
+
+// IDTimestampFromTime returns the time stamp and epoch implied by the provided time
+func IDTimestampFromTime(t time.Time) (uint64, uint8) {
+	return IDTimeFromUnixTime(t.Unix(), t.Nanosecond()/1000000)
+}
+
+// IDTimeFromUnixTime calculates the idtimestamp from the provided time.
+// The seconds are assumed to be counted from the unix epoch, and ms is
+// truncated to 999.
+func IDTimeFromUnixTime(seconds int64, ms int) (uint64, uint8) {
+
+	if ms >= 1000 {
+		ms = 999
+	}
+
+	unixMS := uint64(seconds * 1000)
+
+	// The epoch is taken as the floor of seconds over our epoch duration.
+	// The rounding here is safe for a few hundred years.
+	epoch := uint8(unixMS / uint64(snowflakeid.EpochMS(1)))
+
+	unixMS += uint64(ms)
+	unixMS -= uint64(snowflakeid.EpochMS(epoch))
+
+	msBits := unixMS << snowflakeid.TimeShift
+	return msBits, epoch
 }
 
 // SplitIDTimestampHex accepts a hex encoded, and epoch prefixed, id timestamp string

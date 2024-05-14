@@ -3,6 +3,8 @@ package massifs
 import (
 	"reflect"
 	"testing"
+
+	"github.com/datatrails/forestrie/go-forestrie/massifs/snowflakeid"
 )
 
 func TestIDTimestampBytes(t *testing.T) {
@@ -68,6 +70,79 @@ func TestSplitIDTimestampBytes(t *testing.T) {
 			}
 			if got1 != tt.want1 {
 				t.Errorf("SplitIDTimestampBytes() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+func TestIDTimeFromUnixTime(t *testing.T) {
+
+	epochMS := snowflakeid.EpochMS(1)
+	// epochSec := epochMS / 1000
+	type args struct {
+		seconds int64
+		ms      int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    uint64
+		wantErr bool
+	}{
+		{
+			name: "contemporary, epoch 1",
+			args: args{
+				seconds: 1715184784,
+			},
+			want: (uint64(1715184784*1000) - uint64(epochMS)) << (64 - 40),
+		},
+		{
+			name: "far future (hopefully on a beach or a mountain, along with aubry d grey), epoch 4",
+			args: args{
+				seconds: (1715184784*1000 + 3*epochMS) / 1000,
+			},
+			// note this long hand form accounts for the various roundings that
+			// happen in the conversion process. Converting without an explicit
+			// epoch is always lossy, The method under test is intended for
+			// constructing query filters when looking for blobs with a lastid
+			// tag *after* a certain approximate time.
+			want: uint64((((1715184784*1000+3*epochMS)/1000)*1000)-4*epochMS) << (64 - 40),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := IDTimeFromUnixTime(tt.args.seconds, tt.args.ms)
+			if got != tt.want {
+				t.Errorf("IDTimeFromTimeParts() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIDToTimeParts(t *testing.T) {
+	type args struct {
+		id uint64
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  int64
+		want1 int64
+		want2 []byte
+	}{
+		{"1 bits", args{(1 << (24 + 10)) | (1 << 8) | 1}, 1, 1024 % 1000, []byte{0, 1, 1}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, got2 := IDToTimeParts(tt.args.id)
+			if got != tt.want {
+				t.Errorf("IDToTimeParts() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("IDToTimeParts() got1 = %v, want %v", got1, tt.want1)
+			}
+			if !reflect.DeepEqual(got2, tt.want2) {
+				t.Errorf("IDToTimeParts() got2 = %v, want %v", got2, tt.want2)
 			}
 		})
 	}
