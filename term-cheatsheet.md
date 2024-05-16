@@ -345,7 +345,7 @@ before starting a new massif.
 The massif is self contained because it contains all the leaf nodes and
 intermediate nodes of its own portion of the MMR, but also the peaks of exactly and only those nodes it needs from *any* previous massif.
 
-See the description of the peak stack maintenance in the mmrblob format document linked above
+The details of the format, and how this peak stack is maintained, are discussed further in our developer docs
 of previous massifs.
 
 This property allows for proof generation of any node given ONLY
