@@ -38,7 +38,7 @@ func NewLogTail(path string) (LogTail, error) {
 	return LogTail{
 		Tenant: tenant,
 		Path:   path,
-		Number: uint32(number),
+		Number: number,
 		Ext:    ext,
 		LastID: "",
 	}, nil

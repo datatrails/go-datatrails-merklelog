@@ -54,7 +54,7 @@ func TestParseMassifPathNumberExt(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    int
+		want    uint32
 		want1   string
 		wantErr bool
 	}{
