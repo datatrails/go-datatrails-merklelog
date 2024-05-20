@@ -13,6 +13,7 @@ import (
 var (
 	ErrHex64TagOverflow       = errors.New("a tag value expected to be 64 bit hex had more than 8 bytes of data")
 	ErrMissingFirstIndexTag   = errors.New("the required tag 'firstindex' is missing")
+	ErrMissingLastIDTag       = errors.New("the required tag 'lastid' is missing")
 	ErrIncorrectFirstIndexTag = errors.New("the required tag 'firstindex' is present but the value doesn't match the log")
 )
 
@@ -29,6 +30,14 @@ func GetFirstIndex(tags map[string]string) (uint64, error) {
 	}
 
 	return DecodeTagHex64(firstIndexTag)
+}
+
+func GetLastIDHex(tags map[string]string) string {
+	lastIDTag, ok := tags[TagKeyLastID]
+	if !ok {
+		return ""
+	}
+	return lastIDTag
 }
 
 func SetFirstIndex(firstIndex uint64, tags map[string]string) {

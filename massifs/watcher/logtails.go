@@ -13,8 +13,9 @@ import (
 type LogTail struct {
 	Tenant string
 	Path   string
-	Number int
+	Number uint32
 	Ext    string
+	LastID string
 }
 
 // LogTailCollator is used to collate the most recently modified massif blob paths for all tenants in a given time horizon
@@ -37,8 +38,9 @@ func NewLogTail(path string) (LogTail, error) {
 	return LogTail{
 		Tenant: tenant,
 		Path:   path,
-		Number: number,
+		Number: uint32(number),
 		Ext:    ext,
+		LastID: "",
 	}, nil
 }
 
@@ -118,20 +120,38 @@ func (c LogTailCollator) SortedSealedTenants() []string {
 	return sortMapOfLogTails(c.Seals)
 }
 
+func collectTags(aztags *azblob.BlobTags) map[string]string {
+	if aztags == nil || len(aztags.BlobTagSet) == 0 {
+		return map[string]string{}
+	}
+	tags := map[string]string{}
+	for _, azTag := range aztags.BlobTagSet {
+		if azTag.Key == nil || azTag.Value == nil {
+			continue
+		}
+		tags[*azTag.Key] = *azTag.Value
+	}
+	return tags
+}
+
 // collectPageItem is typically used to handle the first item in a page prior to processing the remainder in a loop
 func (c *LogTailCollator) collectPageItem(it *azblob.FilterBlobItem) error {
 	lt, err := NewLogTail(*it.Name)
 	if err != nil {
 		return err
 	}
+	// if it is missing, it will be the empty string that is set
+	lastid := massifs.GetLastIDHex(collectTags(it.Tags))
 
 	if lt.Ext == massifs.V1MMRMassifExt {
 		cur, ok := c.Massifs[lt.Tenant]
 		if !ok {
+			lt.LastID = lastid
 			c.Massifs[lt.Tenant] = lt
 			return nil
 		}
 		if cur.TryReplaceTail(lt) {
+			cur.LastID = lastid
 			c.Massifs[lt.Tenant] = cur
 		}
 		return nil
@@ -141,10 +161,12 @@ func (c *LogTailCollator) collectPageItem(it *azblob.FilterBlobItem) error {
 	// we know we have a seal
 	cur, ok := c.Seals[lt.Tenant]
 	if !ok {
+		lt.LastID = lastid
 		c.Seals[lt.Tenant] = lt
 		return nil
 	}
 	if cur.TryReplaceTail(lt) {
+		cur.LastID = lastid
 		c.Seals[lt.Tenant] = cur
 	}
 	return nil

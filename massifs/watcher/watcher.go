@@ -57,6 +57,10 @@ func NewWatcher(cfg WatchConfig) (Watcher, error) {
 	return Watcher{Cfg: cfg}, nil
 }
 
+func (w Watcher) ConfigString() string {
+	return fmt.Sprintf("Since: %s, Interval: %v, IDSince: %s", w.Cfg.Since.UTC().Format(time.RFC3339), w.Cfg.Interval, w.Cfg.IDSince)
+}
+
 func ConfigDefaults(cfg *WatchConfig) error {
 	if cfg.Since.UnixMilli() == 0 || cfg.IDSince != "" && cfg.Horizon != 0 {
 		return fmt.Errorf("provide horizon on its own or either of the since parameters.")

@@ -55,7 +55,7 @@ func ParseMassifPathTenant(path string) (string, error) {
 
 // ParseMassifPathTenant parse the log file number and extension from the storage path
 // Performs basic sanity checks
-func ParseMassifPathNumberExt(path string) (int, string, error) {
+func ParseMassifPathNumberExt(path string) (uint32, string, error) {
 	if !strings.HasPrefix(path, V1MMRTenantPrefix) {
 		return 0, "", fmt.Errorf("%w: %s", ErrMassifPathFmt, path)
 	}
@@ -71,9 +71,9 @@ func ParseMassifPathNumberExt(path string) (int, string, error) {
 	if parts[1] != V1MMRMassifExt && parts[1] != V1MMRSealSignedRootExt {
 		return 0, "", fmt.Errorf("%w: extension invalid %s", ErrMassifPathFmt, path)
 	}
-	number, err := strconv.Atoi(parts[0])
+	number, err := strconv.ParseUint(parts[0], 16, 32)
 	if err != nil {
 		return 0, "", fmt.Errorf("%w: log file number invalid %s (%v)", ErrMassifPathFmt, path, err)
 	}
-	return number, parts[1], nil
+	return uint32(number), parts[1], nil
 }

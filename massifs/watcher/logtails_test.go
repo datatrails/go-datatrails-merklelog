@@ -13,7 +13,7 @@ func TestLogTail_TryReplaceTail(t *testing.T) {
 	type fields struct {
 		Tenant string
 		Path   string
-		Number int
+		Number uint32
 		Ext    string
 	}
 	type args struct {
@@ -81,7 +81,7 @@ func TestLogTail_TryReplacePath(t *testing.T) {
 	type fields struct {
 		Tenant string
 		Path   string
-		Number int
+		Number uint32
 		Ext    string
 	}
 	type args struct {
