@@ -23,6 +23,7 @@ type TestMinimalCommitter struct {
 	tc            mmrtesting.TestContext
 	committer     MassifCommitter
 	leafGenerator mmrtesting.LeafGenerator
+	LastCommited  MassifContext
 }
 
 // NewTestCommitter creates a minimal forestrie leaf committer for use with
@@ -52,7 +53,8 @@ func (c *TestMinimalCommitter) GetCurrentContext(
 	return c.committer.GetCurrentContext(ctx, tenantIdentity, c.cfg.MassifHeight)
 }
 
-func (c *TestMinimalCommitter) AddLeaves(ctx context.Context, tenantIdentity string, base, count uint64) error {
+func (c *TestMinimalCommitter) AddLeaves(
+	ctx context.Context, tenantIdentity string, base, count uint64) error {
 	if count == 0 {
 		return nil
 	}
@@ -97,10 +99,13 @@ func (c *TestMinimalCommitter) AddLeaves(ctx context.Context, tenantIdentity str
 		}
 	}
 
+	c.LastCommited = mc
+
 	_, err = c.committer.CommitContext(ctx, mc)
 	if err != nil {
 		c.log.Infof("AddLeaves: %v", err)
 		return err
 	}
+
 	return nil
 }

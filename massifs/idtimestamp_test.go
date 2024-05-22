@@ -1,10 +1,13 @@
 package massifs
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/datatrails/go-datatrails-merklelog/massifs/snowflakeid"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIDTimestampBytes(t *testing.T) {
@@ -144,6 +147,46 @@ func TestIDToTimeParts(t *testing.T) {
 			if !reflect.DeepEqual(got2, tt.want2) {
 				t.Errorf("IDToTimeParts() got2 = %v, want %v", got2, tt.want2)
 			}
+		})
+	}
+}
+
+func TestSplitIDTimestampHex(t *testing.T) {
+	type args struct {
+		id string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    uint64
+		want1   uint8
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name:  "filter",
+			args:  args{id: "018f94c387ab000000"},
+			want:  0,
+			want1: 0,
+		},
+		{
+			name:  "tag",
+			args:  args{id: "018f7d469e39113700"},
+			want:  0,
+			want1: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := SplitIDTimestampHex(tt.args.id)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SplitIDTimestampHex() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			lastMS, err := snowflakeid.IDUnixMilli(got, got1)
+			require.NoError(t, err)
+			fmt.Printf("%v\n", time.UnixMilli(lastMS).UTC().Format(time.RFC3339))
 		})
 	}
 }

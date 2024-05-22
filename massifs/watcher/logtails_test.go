@@ -3,11 +3,73 @@ package watcher
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func Test_MaxSuffled(t *testing.T) {
+
+	mkcollator := func(paths []string) LogTailCollator {
+		lc := NewLogTailCollator()
+
+		var page []*azblob.FilterBlobItem
+		page = make([]*azblob.FilterBlobItem, 0, len(paths))
+
+		for _, path := range paths {
+
+			it := &azblob.FilterBlobItem{
+				Name: new(string),
+			}
+			*it.Name = path
+			page = append(page, it)
+		}
+		err := lc.CollatePage(page)
+		require.NoError(t, err)
+		return lc
+	}
+
+	type args struct {
+		collator LogTailCollator
+	}
+	tests := []struct {
+		name          string
+		args          args
+		tenants       []string
+		massifTenants []string
+		sealTenants   []string
+	}{
+		{
+			name: "two massifs, one seal",
+			args: args{
+				mkcollator([]string{
+					"v1/mmrs/tenant/tenantid-a/0/massifs/0.log",
+					"v1/mmrs/tenant/tenantid-b/0/massifseals/0.sth",
+					"v1/mmrs/tenant/tenantid-c/0/massifs/0.log",
+				}),
+			},
+			massifTenants: []string{"tenantid-a", "tenantid-c"},
+			sealTenants:   []string{"tenantid-b"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.args.collator.MassifTenants()
+			slices.Sort(got)
+			if !reflect.DeepEqual(got, tt.massifTenants) {
+				t.Errorf("expected massif tenants: %v, got: %v", tt.massifTenants, got)
+			}
+			got = tt.args.collator.SealedTenants()
+			slices.Sort(got)
+			if !reflect.DeepEqual(got, tt.sealTenants) {
+				t.Errorf("expected sealed tenants: %v, got: %v", tt.sealTenants, got)
+			}
+		})
+	}
+}
 
 func TestLogTail_TryReplaceTail(t *testing.T) {
 	type fields struct {

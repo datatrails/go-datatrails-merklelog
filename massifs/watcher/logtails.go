@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"math/rand"
 	"slices"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
@@ -110,9 +111,36 @@ func sortMapOfLogTails(m map[string]LogTail) []string {
 	return keys
 }
 
+// shuffleMapOfLogTails returns the list of keys shuffled using rand.Shuffle
+// This should be used to avoid odd biases do to fixed oder treatment of tenants.
+func shuffleMapOfLogTails(m map[string]LogTail) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	rand.Shuffle(len(keys), func(i, j int) {
+		keys[i], keys[j] = keys[j], keys[i]
+	})
+	return keys
+}
+
+// MassifTenants returns the keys of the massifs map specifically shuffled to
+// avoid biasing service based on lexical order of tenant identities or go lang
+// default key ordering
+func (c LogTailCollator) MassifTenants() []string {
+	return shuffleMapOfLogTails(c.Massifs)
+}
+
 // SortedMassifTenants returns the keys of the massifs map in sorted order
 func (c LogTailCollator) SortedMassifTenants() []string {
 	return sortMapOfLogTails(c.Massifs)
+}
+
+// SealedTenants returns the keys of the seals map specifically shuffled to
+// avoid biasing service based on lexical order of tenant identities or go lang
+// default key ordering
+func (c LogTailCollator) SealedTenants() []string {
+	return shuffleMapOfLogTails(c.Seals)
 }
 
 // SortedSealedTenants returns the keys of the massifs map in sorted order
