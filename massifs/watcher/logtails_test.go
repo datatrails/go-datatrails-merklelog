@@ -11,7 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_MaxSuffled(t *testing.T) {
+// Test_LogTailColatePage tests that the expected tenant massifs and seals are collated as expected
+func Test_LogTailColatePage(t *testing.T) {
 
 	mkcollator := func(paths []string) LogTailCollator {
 		lc := NewLogTailCollator()
