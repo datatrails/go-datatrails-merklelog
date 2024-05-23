@@ -112,7 +112,7 @@ func sortMapOfLogTails(m map[string]LogTail) []string {
 }
 
 // shuffleMapOfLogTails returns the list of keys shuffled using rand.Shuffle
-// This should be used to avoid odd biases do to fixed oder treatment of tenants.
+// This should be used to avoid odd biases due to fixed order treatment of tenants.
 func shuffleMapOfLogTails(m map[string]LogTail) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
