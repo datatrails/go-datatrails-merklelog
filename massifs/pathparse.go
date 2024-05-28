@@ -71,7 +71,7 @@ func ParseMassifPathNumberExt(path string) (uint32, string, error) {
 	if parts[1] != V1MMRMassifExt && parts[1] != V1MMRSealSignedRootExt {
 		return 0, "", fmt.Errorf("%w: extension invalid %s", ErrMassifPathFmt, path)
 	}
-	number, err := strconv.ParseUint(parts[0], 16, 32)
+	number, err := strconv.ParseUint(parts[0], 10, 32)
 	if err != nil {
 		return 0, "", fmt.Errorf("%w: log file number invalid %s (%v)", ErrMassifPathFmt, path, err)
 	}

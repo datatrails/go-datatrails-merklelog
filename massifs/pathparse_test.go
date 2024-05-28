@@ -58,7 +58,13 @@ func TestParseMassifPathNumberExt(t *testing.T) {
 		want1   string
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			"decimal / hex confusion",
+			args{"v1/mmrs/tenant/84e0e9e9-d479-4d4e-9e8c-afc19a8fc185/0/massifs/0000000000000051.log"},
+			51,
+			"log",
+			false,
+		},
 		{
 			"happy case",
 			args{"v1/mmrs/tenant/84e0e9e9-d479-4d4e-9e8c-afc19a8fc185/0/massifs/0000000000000002.log"},
