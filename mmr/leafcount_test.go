@@ -1,6 +1,11 @@
 package mmr
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"gotest.tools/v3/assert"
+)
 
 func TestLeafCount(t *testing.T) {
 	type args struct {
@@ -52,4 +57,43 @@ func TestLeafCount(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLeafCountFirst26 this test exists to show the behavior when LeafCount is
+// given invalid mmrSizes.  Essentially, it returns the result of the highest
+// valid mmrSize <= the provided size. And this can make its behavior
+// non-obvious when it is used with arbitrary sizes.
+func TestLeafCountFirst26(t *testing.T) {
+
+	// expectLeafCounts is expressed in binary to illustrate that the consecutive valid
+	// values for the binary accumulator are precisely the leaves. Essentially,
+	// when we add a leaf to an MMR, we are doing the binary carry operation.
+	// This is why we get 'smears' of leaf counts for invalid mmrSizes. The
+	// correspond to not having fully "carried the bit addition". When we run
+	// the PeaksBitmap (which is how LeafCount works), on the intermediate
+	// values, it terminates at the last valid mmrSize.
+	expectLeafCounts := []uint64{
+		// 	1, 1, 2, 3, 3, 3, 4, 5, 5, 6, 7, 7, 7, 7, 8, 9, 9, 10, 11, 11, 11, 12, 13, 13, 14, 15,
+		0b1, 0b1, 0b10, 0b11, 0b11, 0b11, 0b100, 0b101, 0b101, 0b110, 0b111, 0b111, 0b111, 0b111,
+		0b1000, 0b1001, 0b1001, 0b1010, 0b1011, 0b1011, 0b1011, 0b1100, 0b1101, 0b1101, 0b1110, 0b1111,
+	}
+
+	var leafCounts []uint64
+
+	for mmrIndex := uint64(0); mmrIndex < 26; mmrIndex++ {
+		// i+1 converts from mmrIndex to mmrSize
+		mmrSize := mmrIndex + 1
+		got := LeafCount(mmrSize)
+		assert.Equal(t, got, expectLeafCounts[mmrIndex])
+		leafCounts = append(leafCounts, got)
+	}
+	for i := range leafCounts {
+		fmt.Printf("%04d, ", i+1)
+	}
+	fmt.Printf("\n")
+	for _, l := range leafCounts {
+		fmt.Printf("%04b, ", l)
+	}
+
+	fmt.Printf("\n")
 }

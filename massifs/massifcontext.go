@@ -243,7 +243,7 @@ func (mc *MassifContext) Get(i uint64) ([]byte, error) {
 // GetTrieEntry gets the trie entry given the mmrIndex of its corresponding leaf node.
 func (mc MassifContext) GetTrieEntry(mmrIndex uint64) ([]byte, error) {
 
-	trieIndex := mmr.LeafCount(mmrIndex + 1)
+	trieIndex := mmr.LeafCount(mmrIndex+1) - 1
 
 	massifTrieIndex, err := mc.GetMassifTrieIndex(trieIndex)
 	if err != nil {
@@ -256,7 +256,7 @@ func (mc MassifContext) GetTrieEntry(mmrIndex uint64) ([]byte, error) {
 // GetTrieKey gets the trie key given the mmrIndex of the trie entries corresponding leaf node.
 func (mc MassifContext) GetTrieKey(mmrIndex uint64) ([]byte, error) {
 
-	trieIndex := mmr.LeafCount(mmrIndex + 1)
+	trieIndex := mmr.LeafCount(mmrIndex+1) - 1
 
 	massifTrieIndex, err := mc.GetMassifTrieIndex(trieIndex)
 	if err != nil {
