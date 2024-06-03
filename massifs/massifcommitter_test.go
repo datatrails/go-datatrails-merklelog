@@ -295,7 +295,7 @@ func TestMassifCommitter_threemassifs(t *testing.T) {
 	blobPath2 := fmt.Sprintf("v1/mmrs/%s/0/massifs/%016d.log", tenantIdentity, 2)
 	assert.Equal(tc.T, mc.BlobPath, blobPath2)
 	assert.Equal(tc.T, mc.Creating, true)
-	assert.DeepEqual(tc.T, len(mc.Data)-int(mc.LogStart()), 0)
+	assert.Equal(tc.T, len(mc.Data)-int(mc.LogStart()), 0)
 	assert.Equal(tc.T, mc.Start.FirstIndex, uint64(15))
 
 	// fill it, note that this one does _not_ require an alpine node
