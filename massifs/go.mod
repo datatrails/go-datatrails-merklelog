@@ -2,8 +2,6 @@ module github.com/datatrails/go-datatrails-merklelog/massifs
 
 go 1.22
 
-replace github.com/ethereum/go-ethereum => github.com/ConsenSys/quorum v0.0.0-20221208112643-d318a5aa973a
-
 require (
 	github.com/datatrails/go-datatrails-merklelog/mmr v0.0.1
 	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.0.1
