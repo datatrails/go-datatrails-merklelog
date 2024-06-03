@@ -2,22 +2,19 @@ module github.com/datatrails/go-datatrails-merklelog/massifs
 
 go 1.22
 
-replace (
-	github.com/datatrails/go-datatrails-merklelog/massifs => ./
-	github.com/datatrails/go-datatrails-merklelog/mmr => ../mmr
-	github.com/datatrails/go-datatrails-merklelog/mmrtesting => ../mmrtesting
-	github.com/ethereum/go-ethereum => github.com/ConsenSys/quorum v0.0.0-20221208112643-d318a5aa973a
+replace github.com/ethereum/go-ethereum => github.com/ConsenSys/quorum v0.0.0-20221208112643-d318a5aa973a
+
+require (
+	github.com/datatrails/go-datatrails-merklelog/mmr v0.0.1
+	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.0.1
 )
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v0.4.1
 	github.com/datatrails/go-datatrails-common v0.15.1
-	github.com/datatrails/go-datatrails-merklelog/mmr v0.0.0-00010101000000-000000000000
-	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.0.0-00010101000000-000000000000
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.9.0
 	github.com/veraison/go-cose v1.1.0
-	gotest.tools/v3 v3.5.1
 )
 
 require (
@@ -48,7 +45,6 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.1 // indirect
 	github.com/ldclabs/cose/go v0.0.0-20221214142927-d22c1cfc2154 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect

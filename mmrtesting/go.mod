@@ -8,11 +8,6 @@ require (
 	github.com/stretchr/testify v1.9.0
 )
 
-replace (
-	github.com/datatrails/go-datatrails-merklelog/mmr => ../mmr
-	github.com/datatrails/go-datatrails-merklelog/mmrtesting => ./
-)
-
 require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.1 // indirect

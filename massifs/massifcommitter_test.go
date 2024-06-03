@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gotest.tools/v3/assert"
 )
 
 // TestMassifCommitter_firstMassif covers creation of the first massive blob and related conditions
