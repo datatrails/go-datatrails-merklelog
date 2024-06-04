@@ -110,12 +110,12 @@ func IndexProofLocal(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte
 	var value []byte
 
 	for i < mmrSize {
-		iHeight := IndexHeight(i)
 		iNextHeight := IndexHeight(i + 1)
-		if iNextHeight > iHeight {
+		if iNextHeight > height {
 			iSibling := i - SiblingOffset(height)
 			if iSibling >= mmrSize {
-				break
+				// break
+				return proof, i, nil
 			}
 
 			if value, err = store.Get(iSibling); err != nil {
@@ -127,7 +127,8 @@ func IndexProofLocal(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte
 		} else {
 			iSibling := i + SiblingOffset(height)
 			if iSibling >= mmrSize {
-				break
+				return proof, i, nil
+				// break
 			}
 
 			if value, err = store.Get(iSibling); err != nil {
