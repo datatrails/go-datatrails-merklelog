@@ -2,11 +2,16 @@ package massifs
 
 import (
 	"context"
+	"errors"
 
 	"github.com/datatrails/go-datatrails-common/azblob"
 	"github.com/datatrails/go-datatrails-common/cbor"
 	dtcose "github.com/datatrails/go-datatrails-common/cose"
 	"github.com/datatrails/go-datatrails-common/logger"
+)
+
+var (
+	ErrLogContextNotRead = errors.New("attempted to use lastContext before it was read")
 )
 
 // SignedRootReader provides a context for reading the signed tree head associated with a massif
@@ -15,6 +20,9 @@ type SignedRootReader struct {
 	log   logger.Logger
 	store logBlobReader
 	codec cbor.CBORCodec
+	// lastContext saves the last context read from blob store, this includes
+	// Tags if they were requested
+	lastContext LogBlobContext
 }
 
 func NewSignedRootReader(log logger.Logger, store logBlobReader, codec cbor.CBORCodec) SignedRootReader {
@@ -24,6 +32,16 @@ func NewSignedRootReader(log logger.Logger, store logBlobReader, codec cbor.CBOR
 		codec: codec,
 	}
 	return r
+}
+
+// GetLastReadContext returns a copy of the most recently read context. Use this
+// to get access to the tags when using WithGetTags.  If the context hasn't been
+// read (directly or indirectly) an error is returned.
+func (s *SignedRootReader) GetLastReadContext() (LogBlobContext, error) {
+	if s.lastContext.BlobPath == "" {
+		return LogBlobContext{}, ErrLogContextNotRead
+	}
+	return s.lastContext, nil
 }
 
 func (s *SignedRootReader) GetLazyContext(
@@ -48,6 +66,7 @@ func (s *SignedRootReader) GetLazyContext(
 	if err != nil {
 		return LogBlobContext{}, 0, err
 	}
+	s.lastContext = logBlobContext
 	return logBlobContext, count, nil
 }
 
@@ -60,6 +79,7 @@ func (s *SignedRootReader) ReadLogicalContext(
 	if err != nil {
 		return nil, MMRState{}, err
 	}
+	s.lastContext = logContext
 
 	signed, unverifiedState, err := DecodeSignedRoot(s.codec, logContext.Data)
 	if err != nil {
@@ -130,14 +150,15 @@ func (s *SignedRootReader) GetLatestMassifSignedRoot(
 	opts ...azblob.Option,
 ) (*dtcose.CoseSign1Message, MMRState, error) {
 
-	lc := LogBlobContext{
+	logContext := LogBlobContext{
 		BlobPath: TenantMassifSignedRootPath(tenantIdentity, massifIndex),
 	}
-	err := lc.ReadData(ctx, s.store, opts...)
+	err := logContext.ReadData(ctx, s.store, opts...)
 	if err != nil {
 		return nil, MMRState{}, err
 	}
-	signed, unverifiedState, err := DecodeSignedRoot(s.codec, lc.Data)
+	s.lastContext = logContext
+	signed, unverifiedState, err := DecodeSignedRoot(s.codec, logContext.Data)
 	if err != nil {
 		return nil, MMRState{}, err
 	}
