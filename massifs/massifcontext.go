@@ -243,7 +243,8 @@ func (mc *MassifContext) Get(i uint64) ([]byte, error) {
 // GetTrieEntry gets the trie entry given the mmrIndex of its corresponding leaf node.
 func (mc MassifContext) GetTrieEntry(mmrIndex uint64) ([]byte, error) {
 
-	trieIndex := mmr.LeafCount(mmrIndex+1) - 1
+	// Note: mmrIndex identifies an arbitrary node, so LeafIndex is necessary
+	trieIndex := mmr.LeafIndex(mmrIndex)
 
 	massifTrieIndex, err := mc.GetMassifTrieIndex(trieIndex)
 	if err != nil {
@@ -256,7 +257,8 @@ func (mc MassifContext) GetTrieEntry(mmrIndex uint64) ([]byte, error) {
 // GetTrieKey gets the trie key given the mmrIndex of the trie entries corresponding leaf node.
 func (mc MassifContext) GetTrieKey(mmrIndex uint64) ([]byte, error) {
 
-	trieIndex := mmr.LeafCount(mmrIndex+1) - 1
+	// Note: mmrIndex identifies an arbitrary node, so LeafIndex is necessary
+	trieIndex := mmr.LeafIndex(mmrIndex)
 
 	massifTrieIndex, err := mc.GetMassifTrieIndex(trieIndex)
 	if err != nil {
@@ -458,6 +460,9 @@ func (mc MassifContext) LastCommitUnixMS(idTimestampEpoch uint8) (int64, error) 
 
 // GetMassifLeafIndex returns the leafIndex into the whole log relative to the start of the massif leaf index.
 func (mc MassifContext) GetMassifLeafIndex(leafIndex uint64) (uint64, error) {
+
+	// Note: FirstIndex is also the MMRSize at the end of the previous massif, so LeafCount is used.
+	// similarly RangeCount (below) will always return a valid MMRSize
 	firstLeafIndex := mmr.LeafCount(mc.Start.FirstIndex)
 	if leafIndex < firstLeafIndex {
 		return 0, fmt.Errorf("index %d: %w", leafIndex, ErrBeforeFirstLeaf)
@@ -490,10 +495,11 @@ func (mc MassifContext) GetLastIdTimestamp() uint64 {
 // the number of leaves in the entire mmr call mmr.LeafCount directly)
 func (mc MassifContext) MassifLeafCount() uint64 {
 
-	// Get the count of leaves in the entire mmr
+	// Get the count of leaves in the entire mmr, RangeCount always returns a valid MMRSize
 	count := mmr.LeafCount(mc.RangeCount())
-	// Subtract the number of leaves in the mmr defined by the end of the last blob
-	// to get the count of leaves in the current blob
+	// Subtract the number of leaves in the mmr defined by the end of the last
+	// blob to get the count of leaves in the current blob. FirstIndex is the
+	// valid MMRSize of the end of the preceding massif.
 	return count - mmr.LeafCount(mc.Start.FirstIndex)
 }
 

@@ -49,8 +49,8 @@ github.com/coreos/go-systemd/v22 v22.5.0 h1:RrqgGjYQKalulkV8NGVIfkXQf6YYmOyiJKk8
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/datatrails/go-datatrails-common v0.15.1 h1:wu3Gs6v7TkMLltzavPY2aHPniJabEiuqSJSHW79bX+4=
 github.com/datatrails/go-datatrails-common v0.15.1/go.mod h1:lVLYVw5o+Wj+z8sn8bJBzp9qBCdYQ0DUX91+R5Gn73Q=
-github.com/datatrails/go-datatrails-merklelog/mmr v0.0.1 h1:XggMVejsJ72cAL/msjPhQUSQNeElSh/O1zZcvX4d4JU=
-github.com/datatrails/go-datatrails-merklelog/mmr v0.0.1/go.mod h1:+Oz8O6bns0rF6gr03xJzKTBzUzyskZ8Gics8/qeNzYk=
+github.com/datatrails/go-datatrails-merklelog/mmr v0.0.2 h1:Jxov4/onoFiCISLQNSPy/nyt3USAEvUZpEjlScHJYKI=
+github.com/datatrails/go-datatrails-merklelog/mmr v0.0.2/go.mod h1:+Oz8O6bns0rF6gr03xJzKTBzUzyskZ8Gics8/qeNzYk=
 github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.0.1 h1:sIyXWKTadqmVEsPj66RlKwRKzNQ7hK9SH1fRjZFDCa8=
 github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.0.1/go.mod h1:KGdkOtamWG48EN4AXtTHPv6C0jJKrj840IMSkrD+egk=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
