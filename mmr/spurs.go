@@ -88,7 +88,7 @@ func SpurSumHeight(height uint64) uint64 {
 // Due to the binary nature of the tree, the set reduction is just dividing the
 // current number of spurs by 2 and the count to subtract is exactly the result
 // of that.
-func LeafMinusSpurSum(iLeaf uint64) uint64 {
+func LeafMinusSpurSum(leafIndex uint64) uint64 {
 
 	// XXX: TODO: I think there is a more efficient approach which recursively
 	// splits the leaf index into perfect sub trees based on the most sig bit
@@ -96,10 +96,10 @@ func LeafMinusSpurSum(iLeaf uint64) uint64 {
 	// given it is used mostly for the much smaller logical massif connecting
 	// tree, is fine too.
 
-	sum := iLeaf
-	iLeaf >>= 1
-	for ; iLeaf > 0; iLeaf >>= 1 {
-		sum -= iLeaf
+	sum := leafIndex
+	leafIndex >>= 1
+	for ; leafIndex > 0; leafIndex >>= 1 {
+		sum -= leafIndex
 	}
 	return sum
 }
@@ -124,23 +124,23 @@ func LeafMinusSpurSum(iLeaf uint64) uint64 {
 //
 // iLeaf = 3 returns 2, iLeaf 7 returns 3, iLeaf 9 returns 1
 // Notice that all the even numbered iLeaf, eg 2, 4, 6, 8  all return 0,
-func SpurHeightLeaf(iLeaf uint64) uint64 {
+func SpurHeightLeaf(leafIndex uint64) uint64 {
 	// The binary tree structure means we can use the count of least significant
 	// zero bits as a proxy for height
-	return uint64(bits.TrailingZeros64(iLeaf + 1))
+	return uint64(bits.TrailingZeros64(leafIndex + 1))
 }
 
 // TreeIndex returns the mmr index of the i'th leaf It can also be used to
 // calculate the sum of all the 'alpine nodes' in the mmr blobs preceding the
 // blob if the blob index is substituted for iLeaf
-func TreeIndex(iLeaf uint64) uint64 {
+func TreeIndex(leafIndex uint64) uint64 {
 
 	// XXX: TODO it feels like there is a way to initialise using SpurSumHeight
 	// then accumulate using some variation of the inner term of SpurSumHeight.
 	// But the approach is already O(Log 2 n) ish.
 
 	sum := uint64(0)
-	for i := iLeaf; i > 0; {
+	for i := leafIndex; i > 0; {
 		height := Log2Uint64(i) + 1
 		sum += SpurSumHeight(height) + height
 		half := uint64(1 << (height - 1))
