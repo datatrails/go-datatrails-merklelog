@@ -104,11 +104,16 @@ func TestMassifIndexFromLeafIndex(t *testing.T) {
 // 1. a height of 3 and a mmr index of 4, returns a massif index of 0
 // 2. a height of 3 and a mmr index of 15, returns a massif index of 2
 // 3. a height of 3 and a mmr index of 10, returns a massif index of 1
-// 4. a height of 5 and a mmr index of 33, returns a massif index of 1
-// 5. a height of 5 and a mmr index of 70, returns a massif index of 1
-// 6. a height of 3 and a mmr index of 12, returns not a leaf err
-// 7. a height of 5 and a mmr index of 72, returns not a leaf err
-// 8. a height of 14 and a mmr index of 16382, returns a massif index of 1
+// 4. a height of 3 and a mmr index of 11, returns a massif index of 1
+// 5. a height of 3 and a mmr index of 14, returns a massif index of 1
+// 6. a height of 5 and a mmr index of 33, returns a massif index of 1
+// 7. a height of 5 and a mmr index of 70, returns a massif index of 1
+// 8. a height of 3 and a mmr index of 12, returns a massif index of 1
+// 9. a height of 5 and a mmr index of 72, returns a massif index of 2
+// 10. a height of 14 and a mmr index of 16382, returns a massif index of 0
+// 11. a height of 14 and a mmr index of 16383, returns a massif index of 1
+// 12. a height of 14 and a mmr index of 999418, retruns a massif index of 60
+// 13. a height of 14 and a mmr index of 999419, retruns a massif index of 61
 func TestMassifIndexFromMMRIndex(t *testing.T) {
 	type args struct {
 		massifHeight uint8
@@ -145,6 +150,22 @@ func TestMassifIndexFromMMRIndex(t *testing.T) {
 			expected: 1,
 		},
 		{
+			name: "height 3, mmr index 11",
+			args: args{
+				massifHeight: 3,
+				mmrIndex:     11,
+			},
+			expected: 1,
+		},
+		{
+			name: "height 3, mmr index 14",
+			args: args{
+				massifHeight: 3,
+				mmrIndex:     14,
+			},
+			expected: 1,
+		},
+		{
 			name: "height 5, mmr index 32",
 			args: args{
 				massifHeight: 5,
@@ -174,8 +195,7 @@ func TestMassifIndexFromMMRIndex(t *testing.T) {
 				massifHeight: 3,
 				mmrIndex:     12,
 			},
-			expected: 0,
-			err:      ErrNotleaf,
+			expected: 1,
 		},
 		{
 			name: "height 5, mmr index 72",
@@ -183,23 +203,45 @@ func TestMassifIndexFromMMRIndex(t *testing.T) {
 				massifHeight: 5,
 				mmrIndex:     72,
 			},
-			expected: 0,
-			err:      ErrNotleaf,
+			expected: 2,
 		},
 		{
 			name: "height 14, mmr index 16382",
+			args: args{
+				massifHeight: 14,
+				mmrIndex:     16382,
+			},
+			expected: 0,
+		},
+		{
+			name: "height 14, mmr index 16383",
 			args: args{
 				massifHeight: 14,
 				mmrIndex:     16383,
 			},
 			expected: 1,
 		},
+		{
+			name: "height 14, mmr index 999418",
+			args: args{
+				massifHeight: 14,
+				mmrIndex:     999418,
+			},
+			expected: 60,
+		},
+		{
+			name: "height 14, mmr index 999419",
+			args: args{
+				massifHeight: 14,
+				mmrIndex:     999419,
+			},
+			expected: 61,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			actual, err := MassifIndexFromMMRIndex(test.args.massifHeight, test.args.mmrIndex)
+			actual := MassifIndexFromMMRIndex(test.args.massifHeight, test.args.mmrIndex)
 
-			assert.Equal(t, test.err, err)
 			assert.Equal(t, test.expected, actual)
 		})
 	}

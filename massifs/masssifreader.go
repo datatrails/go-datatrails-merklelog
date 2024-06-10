@@ -182,28 +182,10 @@ func MassifIndexFromLeafIndex(massifHeight uint8, leafIndex uint64) uint64 {
 //	given the mmr index of the leaf.
 //
 // NOTE: if the mmrIndex is not a leaf node, then error is returned.
-func MassifIndexFromMMRIndex(massifHeight uint8, mmrIndex uint64) (uint64, error) {
+func MassifIndexFromMMRIndex(massifHeight uint8, mmrIndex uint64) uint64 {
 
-	// First check if the given mmrIndex is a leaf node.
-	//
-	// NOTE: leaf nodes are always on height 0.
-	height := mmr.IndexHeight(mmrIndex)
-	if height != 0 {
-		return 0, ErrNotleaf
-	}
+	leafIndex := mmr.LeafIndex(mmrIndex)
 
-	// HeightSize returns the maximum number of nodes for a given height of MMR. Where the leaf nodes
-	//  start on height 1.
-	mmrSize := mmr.HeightSize(uint64(massifHeight))
-
-	// now find the massif.
-	//
-	// for context, see: https://github.com/datatrails/epic-8120-scalable-proof-mechanisms/blob/main/mmr/forestrie-mmrblobs.md#blob-size
-	//
-	// Note: massif indexes start at 0.
-	// Note: mmr indexes starts at 0.
-	massifIndex := mmrIndex / mmrSize
-
-	return massifIndex, nil
+	return MassifIndexFromLeafIndex(massifHeight, leafIndex)
 
 }
