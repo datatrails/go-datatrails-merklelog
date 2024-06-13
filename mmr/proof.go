@@ -103,44 +103,71 @@ func IndexProof(mmrSize uint64, store indexStoreGetter, hasher hash.Hash, i uint
 //	0   0   1 3   4  7   8 10  11 15  16 18  19 22  23   25
 func IndexProofLocal(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, uint64, error) {
 
+	var iSibling uint64
+	var iLocalPeak uint64
+
 	var proof [][]byte
 	height := IndexHeight(i) // allows for proofs of interior nodes
 
-	var err error
-	var value []byte
-
 	for i < mmrSize {
-		iNextHeight := IndexHeight(i + 1)
-		if iNextHeight > height {
-			iSibling := i - SiblingOffset(height)
-			if iSibling >= mmrSize {
-				// break
-				return proof, i, nil
-			}
 
-			if value, err = store.Get(iSibling); err != nil {
-				return nil, 0, err
-			}
-			proof = append(proof, value)
-			// go to parent node
-			i += 1
+		iLocalPeak = i
+
+		if IndexHeight(i+1) > height {
+			iSibling = i - SiblingOffset(height)
+			i += 1 // move i to parent
 		} else {
-			iSibling := i + SiblingOffset(height)
-			if iSibling >= mmrSize {
-				return proof, i, nil
-				// break
-			}
-
-			if value, err = store.Get(iSibling); err != nil {
-				return nil, 0, err
-			}
-			proof = append(proof, value)
-			// goto parent node
-			i += 2 << height
+			iSibling = i + SiblingOffset(height)
+			i += 2 << height // move i to parent
 		}
+
+		if iSibling >= mmrSize {
+			return proof, iLocalPeak, nil
+		}
+
+		value, err := store.Get(iSibling)
+		if err != nil {
+			return nil, 0, err
+		}
+		proof = append(proof, value)
+
 		height += 1
 	}
 	return proof, i, nil
+}
+
+func IndexProofLocal2(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, uint64, uint64, error) {
+
+	var iSibling uint64
+	var iLocalPeak uint64
+
+	var proof [][]byte
+	heightIndex := IndexHeight(i) // allows for proofs of interior nodes
+
+	for { // iSibling is guaranteed to break the loop
+
+		iLocalPeak = i
+
+		if IndexHeight(i+1) > heightIndex {
+			iSibling = i - SiblingOffset(heightIndex)
+			i += 1 // move i to parent
+		} else {
+			iSibling = i + SiblingOffset(heightIndex)
+			i += 2 << heightIndex // move i to parent
+		}
+
+		if iSibling >= mmrSize {
+			return proof, iLocalPeak, heightIndex, nil
+		}
+
+		value, err := store.Get(iSibling)
+		if err != nil {
+			return nil, 0, heightIndex, err
+		}
+		proof = append(proof, value)
+
+		heightIndex += 1
+	}
 }
 
 // LeftPosForHeight returns the position that is 'most left' for the given height.

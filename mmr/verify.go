@@ -49,10 +49,66 @@ func VerifyInclusion(
 	return ok && proofLen == len(proof)
 }
 
-// VerifyFirstInclusionPath process the proof until it re-produces the root
+// VerifyInclusionPath returns true if the leafHash combined with path, reproduces the provided root
+//
+// To facilitate the concatenated proof paths used for consistency proofs, it
+// returns the count of path elements used to reach the root.
+//
+// root: The local "peak" root in which leafHash is recorded. This root is a
+// member of the current mmr accumulator, or is itself a node which can be verified
+// for inclusion in a future accumulator.
+func VerifyInclusionPath(
+	mmrSize uint64, hasher hash.Hash, leafHash []byte, iNode uint64, proof [][]byte, root []byte,
+) (bool, int) {
+
+	// Deal with the degenerate case where iNode is a perfect peak. The proof will be nil.
+	if len(proof) == 0 && bytes.Equal(leafHash, root) {
+		return true, 0
+	}
+
+	pos := iNode + 1
+	heightIndex := PosHeight(pos) // allows for proofs of interior nodes
+	elementHash := leafHash
+
+	for iProof, p := range proof {
+
+		hasher.Reset()
+
+		// If the next node is higher, are at the right child, and the left otherwise
+		if PosHeight(pos+1) > heightIndex {
+			// we are at the right child
+
+			pos += 1
+			HashWriteUint64(hasher, pos) // pos is now the parent pos, which was also the commit value
+			hasher.Write(p)
+			hasher.Write(elementHash)
+		} else {
+			// we are at the left child
+
+			pos += 2 << heightIndex
+			HashWriteUint64(hasher, pos) // pos is now the parent pos, which was also the commit value
+			hasher.Write(elementHash)
+			hasher.Write(p)
+		}
+
+		elementHash = hasher.Sum(nil)
+
+		if bytes.Equal(elementHash, root) {
+			// If we have the root then we have successfully completed the
+			// current proof.  Return the index for the start of the next
+			return true, iProof + 1
+		}
+
+		heightIndex += 1
+	}
+	return false, len(proof)
+}
+
+// VerifyFirstInclusionPath process the proof until it re-produces the "bagged" root of the MMR
 //
 // This method exists for the situation where multiple, possibly related, proofs
-// are catenated together in the same path. As they are in log consistency proofs.
+// are catenated together in the same path. As they are in log consistency
+// proofs, when they are proven against a mono root.
 // See [datatrails/go-datatrails-merklelog/merklelog/mmr/VerifyInclusion] for further details.
 //
 // Returns
@@ -67,11 +123,11 @@ func VerifyFirstInclusionPath(
 	peakMap := map[uint64]bool{}
 
 	// Deal with the degenerate case where iNode is a perfect peak. The proof will be nil.
-	if len(proof) == 0 && bytes.Compare(leafHash, root) == 0 {
+	if len(proof) == 0 && bytes.Equal(leafHash, root) {
 		return true, 0
 	}
 
-	height := IndexHeight(iNode) // allows for proofs of interior nodes
+	heightIndex := IndexHeight(iNode) // allows for proofs of interior nodes
 	pos := iNode + 1
 	elementHash := leafHash
 
@@ -125,10 +181,9 @@ func VerifyFirstInclusionPath(
 		}
 
 		// verify the merkle path
-		posHeight := PosHeight(pos)
-		posHeightNext := PosHeight(pos + 1)
+		nextHeight := PosHeight(pos + 1)
 
-		if posHeightNext > posHeight {
+		if nextHeight > heightIndex {
 			// we are at the right child
 
 			// Advance pos first, so we can use the parent pos to decide wether
@@ -144,7 +199,7 @@ func VerifyFirstInclusionPath(
 
 			// Advance pos first, so we can use the parent pos to decide wether
 			// we are still processing the local peak proof.
-			pos += 2 << height
+			pos += 2 << heightIndex
 			if pos <= localPeak {
 				HashWriteUint64(hasher, pos) // pos is now the parent pos, which was also the commit value
 			}
@@ -161,7 +216,7 @@ func VerifyFirstInclusionPath(
 			return true, iProof + 1
 		}
 
-		height += 1
+		heightIndex += 1
 	}
 	return false, len(proof)
 }

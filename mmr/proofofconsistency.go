@@ -53,3 +53,27 @@ func IndexConsistencyProof(
 	}
 	return proof, nil
 }
+func IndexConsistencyProof2(
+	mmrSizeA, mmrSizeB uint64, store indexStoreGetter, hasher hash.Hash,
+) (ConsistencyProof, error) {
+	proof := ConsistencyProof{
+		MMRSizeA: mmrSizeA,
+		MMRSizeB: mmrSizeB,
+	}
+
+	// Find the peaks corresponding to the previous mmr
+	peaksA := Peaks(mmrSizeA)
+
+	// Now generate peak proofs against the new mmr size, using the peak indices
+	// as the input indices to prove
+	for _, iPeakA := range peaksA {
+
+		peakProof, _ /*iPeak*/, err := IndexProofLocal(mmrSizeB, store, iPeakA-1)
+		if err != nil {
+			return ConsistencyProof{}, err
+		}
+		proof.Path = append(proof.Path, peakProof...)
+	}
+	return proof, nil
+
+}
