@@ -5,6 +5,8 @@ import (
 	"math"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPeaks(t *testing.T) {
@@ -123,6 +125,39 @@ func TestHighestPos(t *testing.T) {
 			if got1 != tt.want1 {
 				t.Errorf("HigestPos() got1 = %v, want %v", got1, tt.want1)
 			}
+		})
+	}
+}
+
+func topPeakLongHand(pos uint64) uint64 {
+	top := uint64(1)
+	for (top - 1) <= pos {
+		top <<= 1
+	}
+	return (top >> 1) - 1
+}
+
+func TestTopPeak(t *testing.T) {
+	for pos := uint64(1); pos <= 39; pos++ {
+		t.Run(fmt.Sprintf("TopPeak(%d)", pos), func(t *testing.T) {
+			want := topPeakLongHand(pos)
+			x := 1<<(BitLength64(pos+1)-1) - 1
+			fmt.Printf("%d %4b %4b %d\n", x, x, pos, want)
+			if got := TopPeak(pos); got != want {
+				t.Errorf("TopPeak(%d) = %v, want %v", pos, got, want)
+			}
+		})
+	}
+}
+func TestPeaks2(t *testing.T) {
+	for pos := uint64(1); pos <= 39; pos++ {
+		t.Run(fmt.Sprintf("Peaks2(%d)", pos), func(t *testing.T) {
+			fmt.Printf("Peaks2(mmrSize: %d):", pos)
+			peaks := PeaksOld(pos)
+			peaks2 := Peaks(pos)
+			assert.Equal(t, peaks, peaks2)
+			fmt.Printf(" %v", peaks)
+			fmt.Printf("\n")
 		})
 	}
 }
