@@ -189,7 +189,7 @@ func TestIndexProofLocal(t *testing.T) {
 			if mmrSize == 0 {
 				mmrSize = tt.args.store.Next()
 			}
-			got, got1, err := IndexProofLocal(mmrSize, tt.args.store, tt.args.i)
+			got, got1, _, err := IndexProofPath(mmrSize, tt.args.store, tt.args.i)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("IndexProofLocal() error = %v, wantErr %v", err, tt.wantErr)
 				return

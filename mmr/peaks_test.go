@@ -118,7 +118,8 @@ func TestHighestPos(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := HighestPos(tt.args.mmrSize)
+			got, got1 := PosFloor(tt.args.mmrSize)
+			got1 -= 1
 			if got != tt.want {
 				t.Errorf("HighestPos() got = %v, want %v", got, tt.want)
 			}
