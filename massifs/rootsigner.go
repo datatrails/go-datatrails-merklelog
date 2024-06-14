@@ -17,7 +17,11 @@ type MMRState struct {
 	// hence can be used to verify 'old' receipts. This property is due to the
 	// strict append only structure of the tree.
 	MMRSize uint64 `cbor:"1,keyasint"`
-	Root    []byte `cbor:"2,keyasint"`
+	Root    []byte `cbor:"2,keyasint"` //  XXX: DEPRECATING THIS
+	// The peak hashes for the mmr identified by MMRSize, this is also the packed accumulator for the tree state.
+	// All inclusion proofs for any node under MMRSize will lead directly to one
+	// of these peaks, or can be extended to do so.
+	Peaks [][]byte `cbor:"7,keyasint"`
 	// Timestamp is the unix time (milliseconds) read at the time the root was
 	// signed. Including it allows for the same root to be re-signed.
 	Timestamp int64 `cbor:"3,keyasint"`

@@ -2,6 +2,7 @@ module github.com/datatrails/go-datatrails-merklelog/massifs
 
 go 1.22
 
+replace github.com/datatrails/go-datatrails-merklelog/mmr => ../mmr 
 require (
 	github.com/datatrails/go-datatrails-merklelog/mmr v0.0.2
 	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.1.0

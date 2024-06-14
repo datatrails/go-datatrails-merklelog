@@ -595,7 +595,7 @@ func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 	assert.Equal(t, mc3.peakStackMap[iPeakNode30], iStack30)
 	assert.Equal(t, mc3.peakStackMap[iPeakNode45], iStack45)
 
-	proof, err := mmr.IndexProof(mmrSizeB, &mc3, sha256.New(), iPeakNode30)
+	proof, err := mmr.IndexProofBagged(mmrSizeB, &mc3, sha256.New(), iPeakNode30)
 	require.NoError(t, err)
 
 	peakHash, err := mc3.Get(iPeakNode30)
@@ -603,6 +603,6 @@ func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 
 	root, err := mmr.GetRoot(mmrSizeB, &mc3, sha256.New())
 	require.NoError(t, err)
-	ok = mmr.VerifyInclusion(mmrSizeB, sha256.New(), peakHash, 30, proof, root)
+	ok = mmr.VerifyInclusionBagged(mmrSizeB, sha256.New(), peakHash, 30, proof, root)
 	assert.True(t, ok)
 }
