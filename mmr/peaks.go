@@ -1,5 +1,9 @@
 package mmr
 
+import (
+	"math/bits"
+)
+
 // Peaks returns the array of mountain peaks in the MMR. This is completely
 // deterministic given a valid mmr size. If the mmr size is invalid, this
 // function returns nil.
@@ -66,6 +70,39 @@ func PeakHashes(store indexStoreGetter, mmrSize uint64) ([][]byte, error) {
 	return path, nil
 }
 
+// PeakIndex returns the index of the peak accumulator for the peak with the provided height
+//
+// This method is used to pick elements out of the packed accumulator. If a
+// sparsely maintained accumulator is available, heightIndex can be used
+// directly: accumulator[len(accumulator) - heightIndex - 1]
+//
+// peakBits can be obtained by calling PeaksBitmap. Also, if you know the
+// leafCount, that value is exactly the peakBits.
+//
+// Example:
+//
+//	peaks = Peaks(18) = [14, 17]
+//	peakBits = PeaksBitmap(18) = 101
+//	heightIndex = IndexHeight(17) = 1
+//	i = PeakIndex(peakBits, heightIndex) = 1
+//	peaks[i] = 17
+//
+// For this MMR:
+//
+//	3              14
+//	             /    \
+//	            /      \
+//	           /        \
+//	          /          \
+//	2        6            13
+//	       /   \        /    \
+//	1     2     5      9     12     17
+//	     / \   / \    / \   /  \   /  \
+//	0   0   1 3   4  7   8 10  11 15  16
+func PeakIndex(peakBits, heightIndex uint64) int {
+	return bits.OnesCount64(peakBits & ^((1<<heightIndex)-1)) - 1
+}
+
 // TopPeak returns the smallest, leftmost, peak containing *or equal to* pos
 //
 // This is essentially a ^2 *floor* function for the accumulation of bits:
@@ -102,18 +139,41 @@ func PosFloor(pos uint64) (uint64, uint64) {
 	return heightIndex, 1<<heightIndex - 1
 }
 
-func HeightPeakRight(mmrSize uint64, height uint64, i uint64) (uint64, uint64, bool) {
-
-	// jump to right sibling
-	i += SiblingOffset(height)
-
-	// then the left child
-	for i > mmrSize-1 {
-		if height == 0 {
-			return 0, 0, false
-		}
-		height -= 1
-		i -= (2 << height) // removes the parent offset
+// PeaksBitmap returns a bit mask where a 1 corresponds to a peak and the position
+// of the bit is the height of that peak. The resulting value is also the count
+// of leaves. This is due to the binary nature of the tree.
+//
+// For example, with an mmr with size 19, there are 11 leaves
+//
+//	          14
+//	       /       \
+//	     6          13
+//	   /   \       /   \
+//	  2     5     9     12     17
+//	 / \   /  \  / \   /  \   /  \
+//	0   1 3   4 7   8 10  11 15  16 18
+//
+// PeakMap(19) returns 0b1011 which shows, reading from the right (low bit),
+// there are peaks, that the lowest peak is at height 0, the second lowest at
+// height 1, then the next and last peak is at height 3.
+//
+// If the provided mmr size is invalid, the returned map will be for the largest
+// valid mmr size < the provided invalid size.
+func PeaksBitmap(mmrSize uint64) uint64 {
+	if mmrSize == 0 {
+		return 0
 	}
-	return height, i, true
+	pos := mmrSize
+	// peakSize := uint64(math.MaxUint64) >> bits.LeadingZeros64(mmrSize)
+	peakSize := (uint64(1) << bits.Len64(mmrSize)) - 1
+	peakMap := uint64(0)
+	for peakSize > 0 {
+		peakMap <<= 1
+		if pos >= peakSize {
+			pos -= peakSize
+			peakMap |= 1
+		}
+		peakSize >>= 1
+	}
+	return peakMap
 }

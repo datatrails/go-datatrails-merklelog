@@ -2,7 +2,6 @@ package mmr
 
 import (
 	"fmt"
-	"math"
 	"reflect"
 	"testing"
 
@@ -97,7 +96,7 @@ func TestAncestors(t *testing.T) {
 	fmt.Printf("height: %d\n", massifHeight)
 }
 
-func TestHighestPos(t *testing.T) {
+func TestPosFloor(t *testing.T) {
 	type args struct {
 		mmrSize uint64
 	}
@@ -107,19 +106,18 @@ func TestHighestPos(t *testing.T) {
 		want  uint64
 		want1 uint64
 	}{
-		{"size 0 corner case", args{0}, math.MaxUint64, 0},
-		{"size 1 corner case", args{1}, 0, 0},
-		{"size 2", args{2}, 0, 0},
-		{"size 3", args{3}, 1, 2},
-		{"size 4, two peaks, single solo at i=3", args{4}, 1, 2},
-		{"size 5, three peaks, two solo at i=3, i=4", args{5}, 1, 2},
-		{"size 6, two perfect peaks,i=2, i=5 (note add does not ever leave the MMR in this state)", args{6}, 1, 2},
-		{"size 7, one perfect peaks at i=6", args{7}, 2, 6},
+		{"size 0 corner case", args{0}, 0, 0},
+		{"size 1 corner case", args{1}, 1, 1},
+		{"size 2", args{2}, 1, 1},
+		{"size 3", args{3}, 2, 3},
+		{"size 4, two peaks, single solo at i=3", args{4}, 2, 3},
+		{"size 5, three peaks, two solo at i=3, i=4", args{5}, 2, 3},
+		{"size 6, two perfect peaks,i=2, i=5 (note add does not ever leave the MMR in this state)", args{6}, 2, 3},
+		{"size 7, one perfect peaks at i=6", args{7}, 3, 7},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1 := PosFloor(tt.args.mmrSize)
-			got1 -= 1
 			if got != tt.want {
 				t.Errorf("HighestPos() got = %v, want %v", got, tt.want)
 			}
@@ -159,6 +157,54 @@ func TestPeaks2(t *testing.T) {
 			assert.Equal(t, peaks, peaks2)
 			fmt.Printf(" %v", peaks)
 			fmt.Printf("\n")
+		})
+	}
+}
+
+func TestPeakIndex(t *testing.T) {
+	type args struct {
+		peakBits    uint64
+		heightIndex uint64
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := PeakIndex(tt.args.peakBits, tt.args.heightIndex); got != tt.want {
+				t.Errorf("PeakIndex() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPeaksBitmap(t *testing.T) {
+	tests := []struct {
+		mmrSize uint64
+		want    uint64
+	}{
+		{mmrSize: 10, want: 6},
+		{mmrSize: 1, want: 1},
+		{mmrSize: 3, want: 2},
+		{mmrSize: 4, want: 3},
+		{mmrSize: 7, want: 4},
+		{mmrSize: 8, want: 5},
+		{mmrSize: 11, want: 7},
+		{mmrSize: 15, want: 8},
+		{mmrSize: 16, want: 9},
+		{mmrSize: 18, want: 10},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("PeaksBitmap(%d)", tt.mmrSize), func(t *testing.T) {
+			got := PeaksBitmap(tt.mmrSize)
+			fmt.Printf("%02d %05b %05b %05b %02d\n", tt.mmrSize, tt.mmrSize, tt.mmrSize-1, got, got)
+			if got != tt.want {
+				t.Errorf("PeaksBitmap(%d) = %v, want %v", tt.mmrSize, got, tt.want)
+			}
 		})
 	}
 }

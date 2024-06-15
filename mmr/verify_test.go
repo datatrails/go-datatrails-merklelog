@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math/bits"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,8 +19,8 @@ func getNodes(db *testDb, iNodes ...uint64) [][]byte {
 	return hashes
 }
 
-// TestVerifyLeavesIn38 check that we can obtain and verify proofs for all 38 leaves
-func TestVerifyLeavesIn38(t *testing.T) {
+// TestVerifyLeavesIn38Bagged check that we can obtain and verify proofs for all 38 leaves
+func TestVerifyLeavesIn38Bagged(t *testing.T) {
 	hasher := sha256.New()
 	db := NewCanonicalTestDB(t)
 	mmrSize := db.Next()
@@ -51,8 +52,8 @@ func TestVerifyLeavesIn38(t *testing.T) {
 	// fmt.Printf("VerifyInclusion() ok size=%d, leaves=%d, ok=%d\n", mmrSize, numLeafs, verifiedOk)
 }
 
-// TestVerify38 check that we can obtain and verify proofs for all 38 *nodes*
-func TestVerify38(t *testing.T) {
+// TestVerify38Bagged check that we can obtain and verify proofs for all 38 *nodes*
+func TestVerify38Bagged(t *testing.T) {
 	hasher := sha256.New()
 	db := NewCanonicalTestDB(t)
 	mmrSize := db.Next()
@@ -83,9 +84,9 @@ func TestVerify38(t *testing.T) {
 	// fmt.Printf("VerifyInclusion() ok size=%d, leaves=%d, ok=%d\n", mmrSize, numLeafs, verifiedOk)
 }
 
-// TestVerifyPerfectRoots checks we can produce and verify proofs for the
+// TestVerifyPerfectRootsBagged checks we can produce and verify proofs for the
 // perfect peaks, which should be just the peaks them selves
-func TestVerifyPerfectRoots(t *testing.T) {
+func TestVerifyPerfectRootsBagged(t *testing.T) {
 	hasher := sha256.New()
 
 	verifiedOk := 0
@@ -116,7 +117,7 @@ func TestVerifyPerfectRoots(t *testing.T) {
 	// fmt.Printf("VerifyInclusion() ok size=%d, leaves=%d, ok=%d\n", mmrSize, numLeafs, verifiedOk)
 }
 
-func TestVerifyIndex30InSize63(t *testing.T) {
+func TestVerifyIndex30InSize63Bagged(t *testing.T) {
 
 	hasher := sha256.New()
 	// 63 is the first mmr with a hieght of 5 (and so is a perfect peak)
@@ -137,7 +138,7 @@ func TestVerifyIndex30InSize63(t *testing.T) {
 // shown to be a 'sub-proof' of the new accumulator state and hence verifiable
 // or exchangeable at any time.
 // bug-9026
-func TestReVerify38ForAllSizes(t *testing.T) {
+func TestReVerify38ForAllSizesBagged(t *testing.T) {
 	hasher := sha256.New()
 	// db := NewCanonicalTestDB(t)
 	db := NewGeneratedTestDB(t, 63)
@@ -184,7 +185,6 @@ func TestReVerify38ForAllSizes(t *testing.T) {
 				// verify iNode using the j mmr size.
 				ok := VerifyInclusionBagged(jMMRSize, hasher, nodeHash, iNode, proof, root)
 				assert.Equal(t, ok, true)
-
 			}
 		}
 	}
@@ -200,7 +200,7 @@ func TestVerify(t *testing.T) {
 		return db.mustGet(i)
 	}
 
-	getProof := func(mmrSize uint64, i uint64) [][]byte {
+	getProofBagged := func(mmrSize uint64, i uint64) [][]byte {
 		proof, err := IndexProofBagged(mmrSize, db, hasher, i)
 		require.NoError(t, err)
 		if mmrSize == 1 && proof != nil {
@@ -209,32 +209,66 @@ func TestVerify(t *testing.T) {
 		}
 		return proof
 	}
+	getProof := func(mmrSize uint64, i uint64) [][]byte {
+		proof, err := IndexProof(mmrSize, db, i)
+		require.NoError(t, err)
+		if mmrSize == 1 && proof != nil {
+			t.Errorf("IndexProof() err: %v", errors.New("mmr size 1 should return nil proof"))
+			return nil
+		}
+		return proof
+	}
 
-	verify := func(mmrSize uint64, nodeHash []byte, iNode uint64, proof [][]byte) bool {
+	verifyBagged := func(mmrSize uint64, nodeHash []byte, mmrIndex uint64, proof [][]byte) bool {
 		root, err := GetRoot(mmrSize, db, hasher)
 		require.NoError(t, err)
 		if mmrSize == 1 {
 			// special case
 			return proof == nil
 		}
-		baggedOk := VerifyInclusionBagged(mmrSize, hasher, nodeHash, iNode, proof, root)
+		baggedOk := VerifyInclusionBagged(mmrSize, hasher, nodeHash, mmrIndex, proof, root)
 		return baggedOk
 		// ok, lenProofUsed := VerifyInclusionPath(mmrSize, hasher, nodeHash, iNode, proof, root)
 		// return baggedOk && ok && lenProofUsed == len(proof)
 	}
+	verify := func(mmrSize uint64, nodeHash []byte, mmrIndex uint64, proof [][]byte) (bool, int) {
+
+		// Note: this intentionally replicates the GetProofPeakRoot implementation.
+
+		// for leaf nodes, the peak height index is the proof length - 1, for
+		// generality, to account for interior nodes, we use IndexHeight here.
+		// In contexts where consistency proofs are being generated to check log
+		// extension, typically the returned height from IndexProofPath is
+		// available.
+		nodeHeightIndex := IndexHeight(mmrIndex)
+		peakHeightIndex := uint64(len(proof)) + nodeHeightIndex
+
+		// get the index into the accumulator
+		// peakMap is also the leaf count, which is often also known
+		peakMap := PeaksBitmap(mmrSize)
+		peakIndex := PeakIndex(peakMap, peakHeightIndex)
+		peakHashes, err := PeakHashes(db, mmrSize)
+		require.Less(t, peakIndex, len(peakHashes))
+		require.NoError(t, err)
+		root := peakHashes[peakIndex]
+
+		return VerifyInclusionPath(mmrSize, hasher, nodeHash, mmrIndex, proof, root)
+	}
 
 	type proofNodes struct {
-		iLocalPeak uint64
-		local      []uint64
-		peaksRHS   []uint64
-		peaksLHS   []uint64
+		iLocalPeak       uint64
+		localHeightIndex uint64
+		local            []uint64
+		peaksRHS         []uint64
+		peaksLHS         []uint64
 	}
 
 	type args struct {
-		mmrSize  uint64
-		leafHash []byte
-		iLeaf    uint64
-		proof    [][]byte
+		mmrSize     uint64
+		leafHash    []byte
+		mmrIndex    uint64
+		proofBagged [][]byte
+		proof       [][]byte
 	}
 	tests := []struct {
 		name             string
@@ -242,95 +276,140 @@ func TestVerify(t *testing.T) {
 		want             bool
 		expectProofNodes *proofNodes
 	}{
-		{ // this fails
-			"prove leaf index 22 for sz 26",
-			args{26, H(22), 22, getProof(26, 22)},
+		{
+			"prove interior node index 2",
+			args{26, H(2), 2, getProofBagged(26, 2), getProof(26, 2)}, true, nil,
+		},
+
+		{
+			"prove leaf node index 23 for sz 25",
+			args{25, H(23), 23, getProofBagged(25, 23), getProof(25, 23)},
 			true,
 			&proofNodes{
-				iLocalPeak: 24,
-				local:      []uint64{23},
-				peaksRHS:   []uint64{25},
-				peaksLHS:   []uint64{14, 21},
+				iLocalPeak:       24,
+				localHeightIndex: 1,
+				local:            []uint64{22},
+				peaksLHS:         []uint64{14, 21},
+				peaksRHS:         nil,
+			},
+		},
+
+		{
+			"prove leaf node index 7 for sz 11",
+			args{11, H(7), 7, getProofBagged(11, 7), getProof(11, 7)},
+			true,
+			&proofNodes{
+				iLocalPeak:       9,
+				localHeightIndex: 1,
+				local:            []uint64{8},
+				peaksLHS:         []uint64{6},
+				peaksRHS:         []uint64{10},
+			},
+		},
+		{
+			"prove leaf node index 7 for sz 19",
+			args{19, H(7), 7, getProofBagged(19, 7), getProof(19, 7)},
+			true,
+			&proofNodes{
+				iLocalPeak:       14,
+				localHeightIndex: 3,
+				local:            []uint64{8, 12, 6},
+				peaksLHS:         nil,
+				peaksRHS:         []uint64{17, 18},
+			},
+		},
+
+		{ // this fails
+			"prove leaf node index 22 for sz 26",
+			args{26, H(22), 22, getProofBagged(26, 22), getProof(26, 22)},
+			true,
+			&proofNodes{
+				iLocalPeak:       24,
+				localHeightIndex: 1,
+				local:            []uint64{23},
+				peaksLHS:         []uint64{14, 21},
+				peaksRHS:         []uint64{25},
 			},
 		},
 
 		{ // this is ok
-			"prove leaf index 19 for sz 26",
-			args{26, H(19), 19, getProof(26, 19)}, true,
+			"prove leaf node index 19 for sz 26",
+			args{26, H(19), 19, getProofBagged(26, 19), getProof(26, 19)}, true,
 			&proofNodes{
-				iLocalPeak: 21,
-				local:      []uint64{18, 17},
-				peaksRHS:   []uint64{24, 25},
-				peaksLHS:   []uint64{14},
+				iLocalPeak:       21,
+				localHeightIndex: 2,
+				local:            []uint64{18, 17},
+				peaksLHS:         []uint64{14},
+				peaksRHS:         []uint64{24, 25},
 			},
-		},
-		{
-			"prove leaf index 23 for sz 25",
-			args{25, H(23), 23, getProof(25, 23)},
-			true,
-			&proofNodes{
-				iLocalPeak: 24,
-				local:      []uint64{22},
-				peaksRHS:   nil,
-				peaksLHS:   []uint64{14, 21},
-			},
-		},
-		{
-			"prove leaf index 23 for sz 26",
-			args{26, H(23), 23, getProof(26, 23)}, true, nil,
-		},
-		{
-			"prove leaf index 19 for sz 26",
-			args{26, H(19), 19, getProof(26, 19)}, true, nil,
 		},
 
 		{
-			"prove interior node index 2",
-			args{26, H(2), 2, getProof(26, 2)}, true, nil,
+			"prove leaf node index 23 for sz 26",
+			args{26, H(23), 23, getProofBagged(26, 23), getProof(26, 23)}, true, nil,
 		},
 		{
-			"prove leaf index 1",
-			args{26, H(1), 1, getProof(26, 1)}, true, nil,
+			"prove leaf node index 19 for sz 26",
+			args{26, H(19), 19, getProofBagged(26, 19), getProof(26, 19)}, true, nil,
+		},
+
+		{
+			"prove leaf node index 1",
+			args{26, H(1), 1, getProofBagged(26, 1), getProof(26, 1)}, true, nil,
 		},
 
 		{
 			"prove mid range (sibling mountains either side)",
-			args{26, H(17 - 1), 16, getProof(26, 16)}, true, nil,
+			args{26, H(17 - 1), 16, getProofBagged(26, 16), getProof(26, 16)}, true, nil,
 		},
 		{
 			"edge case, prove the solo leaf at the end of the range",
-			args{39, H(26 - 1), 25, getProof(39, 25)}, true, nil,
+			args{39, H(26 - 1), 25, getProofBagged(39, 25), getProof(39, 25)}, true, nil,
 		},
 		{
 			"edge case, prove the first leaf in the tree",
-			args{26, H(0), 0, getProof(26, 0)}, true, nil,
+			args{26, H(0), 0, getProofBagged(26, 0), getProof(26, 0)}, true, nil,
 		},
 		{
 			"edge case, prove a singleton",
-			args{1, H(0), 1, getProof(1, 0)}, true, nil,
+			args{1, H(0), 1, getProofBagged(1, 0), getProof(1, 0)}, true, nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectProofNodes != nil {
-				localPath, iLocalPeak, _, err := IndexProofPath(tt.args.mmrSize, db, tt.args.iLeaf)
+				localPath, iLocalPeak, localHeightIndex, err := IndexProofPath(tt.args.mmrSize, db, tt.args.mmrIndex)
 				require.NoError(t, err)
-				assert.Equal(t, iLocalPeak, tt.expectProofNodes.iLocalPeak, "local peak incorrect")
-				assert.Equal(t, localPath, getNodes(db, tt.expectProofNodes.local...))
+				assert.Equal(t, tt.expectProofNodes.iLocalPeak, iLocalPeak, "local peak incorrect")
+				assert.Equal(t, tt.expectProofNodes.localHeightIndex, localHeightIndex, "local peak height incorrect")
+				assert.Equal(t, getNodes(db, tt.expectProofNodes.local...), localPath)
 
 				peaks := Peaks(tt.args.mmrSize)
 
+				peakBits := PeaksBitmap(tt.args.mmrSize)
+
+				// the index into the packed accumulator peaks is the count how
+				// many bits are set *above* localHeightIndex in the mask
+				iPeak := bits.OnesCount64(peakBits & ^((1<<localHeightIndex)-1)) - 1
+				fmt.Printf("%04b & %04b = %04b, m: %04b, iPeak: %d\n", peakBits, 1<<localHeightIndex, peakBits&(1<<localHeightIndex), (1<<localHeightIndex)-1, iPeak)
+				assert.NotZero(t, peakBits&(1<<localHeightIndex), "peakBits doesn't contain local peak")
+
 				peakHashes, err := PeakBagRHS(db, hasher, iLocalPeak+1, peaks)
 				require.NoError(t, err)
-				assert.Equal(t, peakHashes, getNodes(db, tt.expectProofNodes.peaksRHS...))
+				assert.Equal(t, getNodes(db, tt.expectProofNodes.peaksRHS...), peakHashes)
 
 				leftPath, err := PeaksLHS(db, iLocalPeak+1, peaks)
 				require.NoError(t, err)
-				assert.Equal(t, leftPath, getNodes(db, tt.expectProofNodes.peaksLHS...))
+				assert.Equal(t, getNodes(db, tt.expectProofNodes.peaksLHS...), leftPath)
 			}
-			if got := verify(tt.args.mmrSize, tt.args.leafHash, tt.args.iLeaf, tt.args.proof); got != tt.want {
+			if got := verifyBagged(tt.args.mmrSize, tt.args.leafHash, tt.args.mmrIndex, tt.args.proofBagged); got != tt.want {
 				t.Errorf("Verify() = %v, want %v", got, tt.want)
 			}
+
+			if got, _ := verify(tt.args.mmrSize, tt.args.leafHash, tt.args.mmrIndex, tt.args.proof); got != tt.want {
+				t.Errorf("Verify() = %v, want %v", got, tt.want)
+			}
+
 		})
 	}
 }
