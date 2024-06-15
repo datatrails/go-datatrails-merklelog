@@ -212,22 +212,6 @@ func TestIndexConsistencyProof(t *testing.T) {
 			}
 		})
 	}
-
-	// // H return the node hash for index i from the canonical test tree.
-	// //
-	// // The canonical test tree has the hashes for all the positions, including
-	// // the interior nodes. Created by mandraulicaly hashing nodes so that tree
-	// // construction can legitimately be tested against it.
-	// H := func(i uint64) []byte {
-	// 	return db.mustGet(i)
-	// }
-	// Hrl := func(right, left []byte) []byte {
-	// 	hasher.Reset()
-	// 	hasher.Write(right)
-	// 	hasher.Write(left)
-	// 	return hasher.Sum(nil)
-	// }
-
 }
 
 func TestIndexConsistencyProofBagged(t *testing.T) {
