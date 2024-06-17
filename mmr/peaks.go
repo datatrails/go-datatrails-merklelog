@@ -118,25 +118,25 @@ func PeakIndex(peakBits, heightIndex uint64) int {
 //	0  1   2 4   5 8   9 11
 func TopPeak(pos uint64) uint64 {
 
-	// This works by working out the next peak up then subtracting 1, which is a flooring function for the bits over the current peak
+	// This works by working out the next peak up then subtracting 1, which is a
+	// flooring function for the bits over the current peak
 	return 1<<(BitLength64(pos+1)-1) - 1
 }
 
-// PosFloor returns the index height and size of the largest perfect peak contained in, or exactly, pos
+// TopHeight returns the index height of the largest perfect peak contained in, or exactly, pos
 // This is essentially a ^2 *floor* function for the accumulation of bits:
 //
-//	PosFloor(1) = PosFloor(2) = 0, 1
-//	PeakFloor(2) = PeakFloor(3) = PeakFloor(4) = PeakFloor(5) = PeakFloor(6) = 1, 3
-//	PeakFloor(7) = 2, 7
+//	TopHeight(1) = TopHeight(2) = 0
+//	PeakFloor(2) = PeakFloor(3) = PeakFloor(4) = PeakFloor(5) = PeakFloor(6) = 1
+//	PeakFloor(7) = 2
 //
 //	2       7
 //	      /   \
 //	1    3     6    10
 //	    / \  /  \   / \
 //	0  1   2 4   5 8   9 11
-func PosFloor(pos uint64) (uint64, uint64) {
-	heightIndex := (BitLength64(pos+1) - 1)
-	return heightIndex, 1<<heightIndex - 1
+func TopHeight(pos uint64) uint64 {
+	return BitLength64(pos+1) - 1
 }
 
 // PeaksBitmap returns a bit mask where a 1 corresponds to a peak and the position

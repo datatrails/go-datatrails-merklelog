@@ -128,10 +128,8 @@ func NewCanonicalTestDB(t *testing.T) *testDb {
 	// 0   0   1 3   4  7   8 10  11 15  16 18  19 22  23   25   26  31  32   34  35   38
 	// .   0 . 1 2 . 3 .4 . 5  6 . 7  8 . 9 10  11 12  13   14   15  16  17   18  19   20
 
-	// XXX: TODO update this for position commitment in interior nodes
 	db := testDb{
 		t: t, store: make(map[uint64][]byte),
-		// next: uint64(19),
 		next: uint64(39),
 	}
 
@@ -237,7 +235,6 @@ func (db *testDb) hashPair(pos, i, j uint64) []byte {
 	if value, err = db.Get(i); err != nil {
 		db.t.Fatalf("index %v not found", i)
 	}
-	// XXX: TODO: position commitment for inner leaves
 	h.Write(value)
 	if value, err = db.Get(j); err != nil {
 		db.t.Fatalf("index %v not found", i)

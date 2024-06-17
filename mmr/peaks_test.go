@@ -96,33 +96,29 @@ func TestAncestors(t *testing.T) {
 	fmt.Printf("height: %d\n", massifHeight)
 }
 
-func TestPosFloor(t *testing.T) {
+func TestTopHeight(t *testing.T) {
 	type args struct {
 		mmrSize uint64
 	}
 	tests := []struct {
-		name  string
-		args  args
-		want  uint64
-		want1 uint64
+		name string
+		args args
+		want uint64
 	}{
-		{"size 0 corner case", args{0}, 0, 0},
-		{"size 1 corner case", args{1}, 1, 1},
-		{"size 2", args{2}, 1, 1},
-		{"size 3", args{3}, 2, 3},
-		{"size 4, two peaks, single solo at i=3", args{4}, 2, 3},
-		{"size 5, three peaks, two solo at i=3, i=4", args{5}, 2, 3},
-		{"size 6, two perfect peaks,i=2, i=5 (note add does not ever leave the MMR in this state)", args{6}, 2, 3},
-		{"size 7, one perfect peaks at i=6", args{7}, 3, 7},
+		{"size 0 corner case", args{0}, 0},
+		{"size 1 corner case", args{1}, 1},
+		{"size 2", args{2}, 1},
+		{"size 3", args{3}, 2},
+		{"size 4, two peaks, single solo at i=3", args{4}, 2},
+		{"size 5, three peaks, two solo at i=3, i=4", args{5}, 2},
+		{"size 6, two perfect peaks,i=2, i=5 (note add does not ever leave the MMR in this state)", args{6}, 2},
+		{"size 7, one perfect peaks at i=6", args{7}, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := PosFloor(tt.args.mmrSize)
+			got := TopHeight(tt.args.mmrSize)
 			if got != tt.want {
 				t.Errorf("HighestPos() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("HigestPos() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}
