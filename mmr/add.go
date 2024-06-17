@@ -54,7 +54,8 @@ func AddHashedLeaf(store NodeAppender, hasher hash.Hash, hashedLeaf []byte) (uin
 		// 		=> i - 1
 		// And, intuitively, the 'next' i is always last i + 1, and that is
 		// always going to be RHS when we are adding
-		iRight := iLeft + SiblingOffset(height)
+		// iRight := iLeft + SiblingOffset(height)
+		iRight := i - 1
 
 		hasher.Reset()
 
