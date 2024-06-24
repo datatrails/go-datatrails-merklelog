@@ -135,7 +135,7 @@ func SpurHeightLeaf(leafIndex uint64) uint64 {
 // blob if the blob index is substituted for iLeaf
 func TreeIndex(leafIndex uint64) uint64 {
 
-	// XXX: TODO it feels like there is a way to initialise using SpurSumHeight
+	// XXX: TODO it feels like there is a way to initialize using SpurSumHeight
 	// then accumulate using some variation of the inner term of SpurSumHeight.
 	// But the approach is already O(Log 2 n) ish.
 

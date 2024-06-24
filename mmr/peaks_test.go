@@ -1,11 +1,13 @@
 package mmr
 
 import (
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPeaks(t *testing.T) {
@@ -30,6 +32,91 @@ func TestPeaks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Peaks(tt.args.mmrSize); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Peaks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPeaksKAT_MMR39(t *testing.T) {
+	tests := []struct {
+		mmrSize uint64
+		want    []uint64
+	}{
+		{1, []uint64{1}},
+		{3, []uint64{3}},
+		{4, []uint64{3, 4}},
+		{7, []uint64{7}},
+		{8, []uint64{7, 8}},
+		{10, []uint64{7, 10}},
+		{11, []uint64{7, 10, 11}},
+		{15, []uint64{15}},
+		{16, []uint64{15, 16}},
+		{18, []uint64{15, 18}},
+		{19, []uint64{15, 18, 19}},
+		{22, []uint64{15, 22}},
+		{23, []uint64{15, 22, 23}},
+		{25, []uint64{15, 22, 25}},
+		{26, []uint64{15, 22, 25, 26}},
+		{31, []uint64{31}},
+		{32, []uint64{31, 32}},
+		{34, []uint64{31, 34}},
+		{35, []uint64{31, 34, 35}},
+		{38, []uint64{31, 38}},
+		{39, []uint64{31, 38, 39}},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d", tt.mmrSize), func(t *testing.T) {
+			if got := Peaks(tt.mmrSize); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Peaks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPeakHashesKAT_MMR39(t *testing.T) {
+	tests := []struct {
+		mmrSize uint64
+		want    []string
+	}{
+		{1, []string{"af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"}},
+		{3, []string{"ad104051c516812ea5874ca3ff06d0258303623d04307c41ec80a7a18b332ef8"}},
+		{4, []string{"ad104051c516812ea5874ca3ff06d0258303623d04307c41ec80a7a18b332ef8", "d5688a52d55a02ec4aea5ec1eadfffe1c9e0ee6a4ddbe2377f98326d42dfc975"}},
+		{7, []string{"827f3213c1de0d4c6277caccc1eeca325e45dfe2c65adce1943774218db61f88"}},
+		{8, []string{"827f3213c1de0d4c6277caccc1eeca325e45dfe2c65adce1943774218db61f88", "a3eb8db89fc5123ccfd49585059f292bc40a1c0d550b860f24f84efb4760fbf2"}},
+		{10, []string{"827f3213c1de0d4c6277caccc1eeca325e45dfe2c65adce1943774218db61f88", "b8faf5f748f149b04018491a51334499fd8b6060c42a835f361fa9665562d12d"}},
+		{11, []string{"827f3213c1de0d4c6277caccc1eeca325e45dfe2c65adce1943774218db61f88", "b8faf5f748f149b04018491a51334499fd8b6060c42a835f361fa9665562d12d", "8d85f8467240628a94819b26bee26e3a9b2804334c63482deacec8d64ab4e1e7"}},
+		{15, []string{"78b2b4162eb2c58b229288bbcb5b7d97c7a1154eed3161905fb0f180eba6f112"}},
+		{16, []string{"78b2b4162eb2c58b229288bbcb5b7d97c7a1154eed3161905fb0f180eba6f112", "e66c57014a6156061ae669809ec5d735e484e8fcfd540e110c9b04f84c0b4504"}},
+		{18, []string{"78b2b4162eb2c58b229288bbcb5b7d97c7a1154eed3161905fb0f180eba6f112", "f4a0db79de0fee128fbe95ecf3509646203909dc447ae911aa29416bf6fcba21"}},
+		{19, []string{"78b2b4162eb2c58b229288bbcb5b7d97c7a1154eed3161905fb0f180eba6f112", "f4a0db79de0fee128fbe95ecf3509646203909dc447ae911aa29416bf6fcba21", "5bc67471c189d78c76461dcab6141a733bdab3799d1d69e0c419119c92e82b3d"}},
+		{22, []string{"78b2b4162eb2c58b229288bbcb5b7d97c7a1154eed3161905fb0f180eba6f112", "61b3ff808934301578c9ed7402e3dd7dfe98b630acdf26d1fd2698a3c4a22710"}},
+		{23, []string{"78b2b4162eb2c58b229288bbcb5b7d97c7a1154eed3161905fb0f180eba6f112", "61b3ff808934301578c9ed7402e3dd7dfe98b630acdf26d1fd2698a3c4a22710", "7a42e3892368f826928202014a6ca95a3d8d846df25088da80018663edf96b1c"}},
+		{25, []string{"78b2b4162eb2c58b229288bbcb5b7d97c7a1154eed3161905fb0f180eba6f112", "61b3ff808934301578c9ed7402e3dd7dfe98b630acdf26d1fd2698a3c4a22710", "dd7efba5f1824103f1fa820a5c9e6cd90a82cf123d88bd035c7e5da0aba8a9ae"}},
+		{26, []string{"78b2b4162eb2c58b229288bbcb5b7d97c7a1154eed3161905fb0f180eba6f112", "61b3ff808934301578c9ed7402e3dd7dfe98b630acdf26d1fd2698a3c4a22710", "dd7efba5f1824103f1fa820a5c9e6cd90a82cf123d88bd035c7e5da0aba8a9ae", "561f627b4213258dc8863498bb9b07c904c3c65a78c1a36bca329154d1ded213"}},
+		{31, []string{"d4fb5649422ff2eaf7b1c0b851585a8cfd14fb08ce11addb30075a96309582a7"}},
+		{32, []string{"d4fb5649422ff2eaf7b1c0b851585a8cfd14fb08ce11addb30075a96309582a7", "1664a6e0ea12d234b4911d011800bb0f8c1101a0f9a49a91ee6e2493e34d8e7b"}},
+		{34, []string{"d4fb5649422ff2eaf7b1c0b851585a8cfd14fb08ce11addb30075a96309582a7", "0c9f36783b5929d43c97fe4b170d12137e6950ef1b3a8bd254b15bbacbfdee7f"}},
+		{35, []string{"d4fb5649422ff2eaf7b1c0b851585a8cfd14fb08ce11addb30075a96309582a7", "0c9f36783b5929d43c97fe4b170d12137e6950ef1b3a8bd254b15bbacbfdee7f", "4d75f61869104baa4ccff5be73311be9bdd6cc31779301dfc699479403c8a786"}},
+		{38, []string{"d4fb5649422ff2eaf7b1c0b851585a8cfd14fb08ce11addb30075a96309582a7", "6a169105dcc487dbbae5747a0fd9b1d33a40320cf91cf9a323579139e7ff72aa"}},
+		{39, []string{"d4fb5649422ff2eaf7b1c0b851585a8cfd14fb08ce11addb30075a96309582a7", "6a169105dcc487dbbae5747a0fd9b1d33a40320cf91cf9a323579139e7ff72aa", "e9a5f5201eb3c3c856e0a224527af5ac7eb1767fb1aff9bd53ba41a60cde9785"}},
+	}
+
+	db := NewCanonicalTestDB(t)
+
+	hexHashList := func(hashes [][]byte) []string {
+		var hexes []string
+		for _, b := range hashes {
+			hexes = append(hexes, hex.EncodeToString(b))
+		}
+		return hexes
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d", tt.mmrSize), func(t *testing.T) {
+			hashes, err := PeakHashes(db, tt.mmrSize)
+			require.NoError(t, err)
+			hexes := hexHashList(hashes)
+			if !reflect.DeepEqual(hexes, tt.want) {
+				t.Errorf("PeakHashes() = %v, want %v", hexes, tt.want)
 			}
 		})
 	}

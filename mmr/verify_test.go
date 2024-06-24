@@ -277,6 +277,15 @@ func TestVerify(t *testing.T) {
 		expectProofNodes *proofNodes
 	}{
 		{
+			"prove node index 0 in MMR(3)",
+			args{3, H(0), 0, getProofBagged(3, 0), getProof(3, 0)}, true, nil,
+		},
+		{
+			"prove node index 0 in MMR(7)",
+			args{7, H(0), 0, getProofBagged(7, 0), getProof(7, 0)}, true, nil,
+		},
+
+		{
 			"prove interior node index 2",
 			args{26, H(2), 2, getProofBagged(26, 2), getProof(26, 2)}, true, nil,
 		},
