@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"hash"
 	"testing"
@@ -72,8 +73,9 @@ func TestGeneratedTestDB(t *testing.T) {
 
 	ok := uint64(0)
 	for i := uint64(0); i < mmrSize; i++ {
+		v := canon.mustGet(i)
+		fmt.Printf("|%s|%04d|%04d|\n", hex.EncodeToString(v), i, LeafCount(i))
 		if bytes.Compare(canon.mustGet(i), db.mustGet(i)) != 0 {
-			fmt.Printf("%d %d\n", i, LeafCount(i))
 			continue
 		}
 		ok++
