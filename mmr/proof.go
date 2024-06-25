@@ -1,90 +1,76 @@
 package mmr
 
 import (
-	"hash"
-	"slices"
+	"errors"
 )
 
-// GetRoot returns the root hash for the Merkle Mountain Range.
-// The root is defined as the 'bagging' of all peaks, starting with the highest.
-// So its simply a call to BagPeaksRHS for _all_ peaks in the MMR of the provided size.
-func GetRoot(mmrSize uint64, store indexStoreGetter, hasher hash.Hash) ([]byte, error) {
-	peaks := Peaks(mmrSize)
-	// The root is ALL the peaks. Note that bagging essentially accumulates them in a binary tree.
-	return BagPeaksRHS(store, hasher, 0, peaks)
+var (
+	ErrProofLenTooLarge = errors.New("proof length value is too large")
+	ErrPeakListTooShort = errors.New("the list of peak values is too short")
+)
+
+// GetProofPeakRoot returns the peak hash for sub tree containing the node
+// index.  This is a convenience method to assist with general proof
+// verification. In many contexts, where the leaf count is known, or if the
+// index is known to represent a leaf, it is more efficient and clearer to do
+// this directly.
+//
+// A proof for node 2 would be [5] and the peak list for mmrSize 11 would be
+//
+//	[6, 9, 10]
+//
+// To obtain the appropriate root to verify a proof of inclusion for node two call this function with:
+//
+//	peakHashes: [H(6), H(9), H(10)]
+//	proofLen: 1
+//	mmrSize: 11
+//	mmrIndex: 2
+//
+// The returned peak root will be H(6)
+//
+// For node 7, mmrIndex would be 7, all other parameters would remain the same and the returned value would be H(9)
+//
+//	2        6
+//	       /   \
+//	1     2     5      9
+//	     / \   / \    / \
+//	0   0   1 3   4  7   8 10
+func GetProofPeakRoot(peakHashes [][]byte, proofLen int, mmrSize, mmrIndex uint64) ([]byte, error) {
+
+	// for leaf nodes, the peak height index is the proof length - 1, for
+	// generality, to account for interior nodes, we use IndexHeight here.
+	// In contexts where consistency proofs are being generated to check log
+	// extension, typically the returned height from IndexProofPath is
+	// available.
+	peakIndex := GetProofPeakIndex(proofLen, mmrSize, IndexHeight(mmrIndex))
+	if peakIndex >= len(peakHashes) {
+		return nil, ErrPeakListTooShort
+	}
+	return peakHashes[peakIndex], nil
 }
 
-// IndexProof provides a proof of inclusion for the leaf at index i against the full MMR
-//
-// It relies on the methods IndexProofLocal, BagPeaksRHS and PeaksLHS for
-// collecting the necessary MMR elements and then combines the results into a
-// final verifiable commitment for the whole MMR.
-//
-// The proof layout is conceptualy this:
-//
-// [local-peak-proof-i, right-sibling-of-i, left-of-i-peaks-reversed]
-//
-// So for leaf 15, given
-//
-//	3              14
-//	             /    \
-//	            /      \
-//	           /        \
-//	          /          \
-//	2        6            13           21
-//	       /   \        /    \
-//	1     2     5      9     12     17     20     24
-//	     / \   / \    / \   /  \   /  \
-//	0   0   1 3   4  7   8 10  11 15  16 18  19 22  23   25
-//
-// We get
-//
-//	               |  BagPeaksRHS   |
-//	               .                .
-//	[H(16), H(20), H(H(H(25)|H(24)) | H(21), H(14)]
-//	 ^ .         ^                   ^           ^
-//	 .___________.                   .___________.
-//	       |                               |
-//	       |                          reversed(PeaksLHS)
-//	   IndexProofLocal
-//
-// Note that right-sibling is omitted if there is none, and similarly, the left
-// peaks. The individual functions producing those elements contain more detail
-// over the construction of their particular proof component.
-func IndexProof(mmrSize uint64, store indexStoreGetter, hasher hash.Hash, i uint64) ([][]byte, error) {
-
-	var err error
-	var proof [][]byte
-	var iLocalPeak uint64 // the peak of the local merkle tree containing i
-	var leftPath [][]byte
-	var rightSibling []byte
-
-	if proof, iLocalPeak, err = IndexProofLocal(mmrSize, store, i); err != nil {
-		return nil, err
+// GetLeafProofRoot gets the appropriate peak root from peakHashes for a leaf proof, See GetProofPeakRoot
+func GetLeafProofRoot(peakHashes [][]byte, proof [][]byte, mmrSize uint64) ([]byte, error) {
+	peakIndex := GetProofPeakIndex(len(proof), mmrSize, 0)
+	if peakIndex >= len(peakHashes) {
+		return nil, ErrPeakListTooShort
 	}
-
-	peaks := Peaks(mmrSize)
-
-	if rightSibling, err = BagPeaksRHS(store, hasher, iLocalPeak+1, peaks); err != nil {
-		return nil, err
-	}
-	if rightSibling != nil {
-		proof = append(proof, rightSibling)
-	}
-
-	if leftPath, err = PeaksLHS(store, iLocalPeak+1, peaks); err != nil {
-		return nil, err
-	}
-	// reverse(leftPath)
-	slices.Reverse(leftPath)
-	proof = append(proof, leftPath...)
-
-	return proof, nil
+	return peakHashes[peakIndex], nil
 }
 
-// IndexProofLocal collects the merkle root proof for the local MMR peak containing index i
+// GetLeafProofRoot gets the compressed accumulator peak index for a leaf proof, See GetProofPeakRoot
+func GetProofPeakIndex(proofLen int, mmrSize uint64, heightIndex uint64) int {
+	peakHeightIndex := uint64(proofLen) + heightIndex
+
+	// get the index into the accumulator
+	// peakMap is also the leaf count, which is often known to the caller
+	peakMap := PeaksBitmap(mmrSize)
+	return PeakIndex(peakMap, peakHeightIndex)
+}
+
+// IndexProofPath collects the merkle root proof for the local MMR peak containing index i
 //
-// So for the follwing index tree, and i=15 with mmrSize = 26 we would obtain the path
+// So for the following index tree, and i=15 with mmrSize = 26 we would obtain the path
 //
 // [H(16), H(20)]
 //
@@ -101,45 +87,45 @@ func IndexProof(mmrSize uint64, store indexStoreGetter, hasher hash.Hash, i uint
 //	1     2     5      9     12     17     20     24
 //	     / \   / \    / \   /  \   /  \
 //	0   0   1 3   4  7   8 10  11 15  16 18  19 22  23   25
-func IndexProofLocal(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, uint64, error) {
+func IndexProofPath(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, uint64, uint64, error) {
+
+	var iSibling uint64
+	var iLocalPeak uint64
 
 	var proof [][]byte
-	height := IndexHeight(i) // allows for proofs of interior nodes
+	heightIndex := IndexHeight(i) // allows for proofs of interior nodes
 
-	var err error
-	var value []byte
+	for { // iSibling is guaranteed to break the loop
 
-	for i < mmrSize {
-		iHeight := IndexHeight(i)
-		iNextHeight := IndexHeight(i + 1)
-		if iNextHeight > iHeight {
-			iSibling := i - SiblingOffset(height)
-			if iSibling >= mmrSize {
-				break
-			}
+		iLocalPeak = i
 
-			if value, err = store.Get(iSibling); err != nil {
-				return nil, 0, err
-			}
-			proof = append(proof, value)
-			// go to parent node
-			i += 1
+		if IndexHeight(i+1) > heightIndex {
+			iSibling = i - SiblingOffset(heightIndex)
+			i += 1 // move i to parent
 		} else {
-			iSibling := i + SiblingOffset(height)
-			if iSibling >= mmrSize {
-				break
-			}
-
-			if value, err = store.Get(iSibling); err != nil {
-				return nil, 0, err
-			}
-			proof = append(proof, value)
-			// goto parent node
-			i += 2 << height
+			iSibling = i + SiblingOffset(heightIndex)
+			i += 2 << heightIndex // move i to parent
 		}
-		height += 1
+
+		if iSibling >= mmrSize {
+			return proof, iLocalPeak, heightIndex, nil
+		}
+
+		value, err := store.Get(iSibling)
+		if err != nil {
+			return nil, 0, heightIndex, err
+		}
+		proof = append(proof, value)
+
+		heightIndex += 1
 	}
-	return proof, i, nil
+}
+
+// IndexProof is a convenience wrapper for IndexProofPath
+// For circumstances where the peak index and the peak heighIndex are not required by the caller
+func IndexProof(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, error) {
+	proof, _, _, err := IndexProofPath(mmrSize, store, i)
+	return proof, err
 }
 
 // LeftPosForHeight returns the position that is 'most left' for the given height.
@@ -148,136 +134,4 @@ func IndexProofLocal(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte
 // has 'all ones' set.
 func LeftPosForHeight(height uint64) uint64 {
 	return (1 << (height + 1)) - 2
-}
-
-// BagPeaksRHS computes a root for the RHS peaks.
-// This function will only return an err if there is an issue fetching a value
-// from the provided store.
-//
-// The burden is on the _caller_ to provide valid peaks for the given position pos
-//
-// If there are no peaks to the right of pos, this function returns nil, nil. This
-// means the sibling hash for pos is to the left and the return value should be
-// ignored.
-//
-// Working exclusively in positions rather than indices, If the peak pos is 25,
-// then the RHS (and the sibling hash) is just H(26), if pos is 26 then there is
-// not right sibling, and this method would return nil.
-//
-// The peaks are listed in ascending order (ie from the end of
-// the range back towards pos), So when pos is 15, the RHS sibling hash will
-// be:
-//
-//	H(H(H(right)|H(left)) | H(22))
-//
-// Which is:
-//
-//	H(H(H(26)|H(25)) | H(22))
-//
-//	3            15
-//	           /    \
-//	          /      \
-//	         /        \
-//	2       7          14             22
-//	      /   \       /   \          /   \
-//	1    3     6    10     13      18      21      25
-//	    / \  /  \   / \   /  \    /  \    /  \    /   \
-//	0  1   2 4   5 8   9 11   12 16   17 19   20 23   24 26
-func BagPeaksRHS(store indexStoreGetter, hasher hash.Hash, pos uint64, peaks []uint64) ([]byte, error) {
-
-	peakHashes, err := PeakBagRHS(store, hasher, pos, peaks)
-	if err != nil {
-		return nil, err
-	}
-
-	root := hashPeaksRHS(hasher, peakHashes)
-	return root, nil
-}
-
-// PeakBagRHS collects the peaks for BagPeaksRHS in the right order for hashing
-func PeakBagRHS(
-	store indexStoreGetter, hasher hash.Hash, pos uint64, peaks []uint64) ([][]byte, error) {
-	var err error
-	var value []byte
-	var peakHashes [][]byte
-
-	for _, peakPos := range peaks {
-
-		// skip all left peaks and the pos peak
-		if peakPos <= pos {
-			continue
-		}
-		// As the leaves are indexed from zero, we just do pos - 1 to access the leaf.
-		if value, err = store.Get(peakPos - 1); err != nil {
-			return nil, err
-		}
-		peakHashes = append(peakHashes, value)
-	}
-	return peakHashes, nil
-}
-
-// hashPeaksRHS creates a binary merkle tree from the peaks to obtain a single
-// tree root.
-//
-// WARNING: MUTATES the input slice by popping items from it
-func hashPeaksRHS(hasher hash.Hash, peakHashes [][]byte) []byte {
-
-	var right []byte
-	var left []byte
-
-	// The hashes are highest to lowest, we are popping so we consume from the end backwards.
-	for len(peakHashes) > 1 {
-
-		right, peakHashes = peakHashes[len(peakHashes)-1], peakHashes[:len(peakHashes)-1] // go lang's array pop
-		left, peakHashes = peakHashes[len(peakHashes)-1], peakHashes[:len(peakHashes)-1]  // go lang's array pop
-
-		hasher.Reset()
-		hasher.Write(right)
-		hasher.Write(left)
-
-		peakHashes = append(peakHashes, hasher.Sum(nil))
-	}
-	if len(peakHashes) > 0 {
-		return peakHashes[0]
-	}
-	return nil
-}
-
-// HashPeaksRHS merkleizes the peaks to obtain a single tree root
-// This variant copies the peakHashes list in order to be side effect free.
-func HashPeaksRHS(hasher hash.Hash, peakHashes [][]byte) []byte {
-	return hashPeaksRHS(hasher, append([][]byte(nil), peakHashes...))
-}
-
-// PeaksLHS collects the peaks to the left of position pos into a flat sequence
-//
-// So for the following tree and pos=25 we would get
-//
-//	[15, 22]
-//
-//	3            15
-//	           /    \
-//	          /      \
-//	         /        \
-//	2       7          14             22
-//	      /   \       /   \          /   \
-//	1    3     6    10     13      18      21      25
-//	    / \  /  \   / \   /  \    /  \    /  \    /   \
-//	0  1   2 4   5 8   9 11   12 16   17 19   20 23   24 26
-func PeaksLHS(store indexStoreGetter, pos uint64, peaks []uint64) ([][]byte, error) {
-
-	var err error
-	var value []byte
-	var peakHashes [][]byte
-
-	for _, peakPos := range peaks {
-		if peakPos >= pos {
-			break
-		}
-		if value, err = store.Get(peakPos - 1); err != nil {
-			return nil, err
-		}
-		peakHashes = append(peakHashes, value)
-	}
-	return peakHashes, nil
 }

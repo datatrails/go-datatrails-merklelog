@@ -13,9 +13,9 @@ import (
 
 // JumpLeftPerfect is used to iteratively discover the left most node at the same
 // height as the  node identified by pos. This is how we discover the height in
-// the tree of an arbitrary pusition so as to avoid ever having to materialise
-// the whole tree. It 'jumps left' by the size of the perfect tree which would
-// contain pos.
+// the tree of an arbitrary position so as to avoid ever having to materialize
+// the whole tree. It 'jumps left' by the size of the largest perfect tree which would
+// precede pos.
 //
 // So given,
 //
@@ -29,10 +29,10 @@ import (
 //	    / \  /  \   / \   /  \    /  \
 //	0  1   2 4   5 8   9 11   12 16   17
 //
-// JumpLeftPerfect(13) returns 6 because the size of the perfect tree containing 13 is
-// 7.  The next jump, JumpLeftPerfect(6) returns 3, because the perfect tree containing
-// 6 is size 3. and the 'all ones' node is found. And the count of 1's - 1 is the
-// height.
+// JumpLeftPerfect(13) returns 6 because the size of the largest perfect tree
+// preceding 13 is 7.  The next jump, JumpLeftPerfect(6) returns 3, because the
+// perfect tree preceding 6 is size 3. and the 'all ones' node is found. And
+// the count of 1's - 1 is the index height.
 //
 // ** Note ** that pos is the *one based* position not the zero based index.
 func JumpLeftPerfect(pos uint64) uint64 {

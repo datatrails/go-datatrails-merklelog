@@ -1,102 +1,99 @@
 package mmr
 
 import (
-	"bytes"
 	"hash"
 )
 
-// VerifyConsistency returns true if the mmr log update from mmr a to mmr b is
-// append only.  This means that the new log contains an exact copy of the
-// previous log, with any new nodes appended after. The proof is created by
-// [datatrails/go-datatrails-merklelog/merklelog/mmr/IndexConsistencyProof]
+func CheckConsistency(
+	store indexStoreGetter, hasher hash.Hash,
+	cp ConsistencyProof, peakHashesA [][]byte) (bool, error) {
+
+	peakHashesB, err := PeakHashes(store, cp.MMRSizeB)
+	if err != nil {
+		return false, err
+	}
+
+	return VerifyConsistency(
+		hasher, cp, peakHashesA, peakHashesB), nil
+}
+
+// VerifyConsistency verifies the consistency between two MMR states.
+// The MMR(A) and MMR(B) states are identified by the fields MMRSizeA and
+// MMRSizeB in the proof. peakHashesA and B are the node values corresponding to
+// the MMR peaks of each respective state. The Path in the proof contains the
+// nodes necessary to prove each A-peak reaches a B-peak. The path contains the
+// concatenated inclusion proofs for each A-peak in MMR(B).
 //
-// The proof comprises an single path which contains an inclusion proof for each
-// peak node in the old mmr against the new mmr root. As all mmr interior nodes
-// are committed to their mmr position when added, this is sufficient to show
-// the new mmr contains an exact copy of the previous. And so can only be the
-// result of append operations.
+//	    MMR(A):[7, 8]      MMR(B):[7, 10, 11]
+//	 2       7                7
+//	       /   \            /   \
+//	 1    3     6          3     6    10
+//	     / \  /  \        / \  /  \   / \
+//	 0  1   2 4   5 8    1   2 4   5 8   9 11
 //
-// There is, of course, some redundancy in the path, but accepting that allows
-// re-use of VerifyInclusion for both consistency and inclusion proofs.
+//		Path MMR(A) -> MMR(B)
+//		7 in MMR(B) -> []
+//		7 in MMR(B) -> [9]
+//		Path = [9]
+//
+// Noting that the path is empty for node 7 and catenate([], [9]) = [9]
 func VerifyConsistency(
-	hasher hash.Hash, peakHashesA [][]byte,
-	proof ConsistencyProof, rootA []byte, rootB []byte) bool {
+	hasher hash.Hash,
+	proof ConsistencyProof, peakHashesA [][]byte, peakHashesB [][]byte) bool {
 
-	// A zero length path not valid, even in the case where the mmr's are
-	// identical (root a == root b)
-	if len(proof.Path) == 0 {
+	// Establish the node indices of the peaks in each mmr state.  The peak
+	// nodes of mmr state A must be at the same indices in mmr B for the update
+	// to be considered consistent. However, if mmr b has additional entries at
+	// all, some or all of those peaks from A will no longer be peaks in B.
+	peakPositionsA := Peaks(proof.MMRSizeA)
+	peakPositionsB := Peaks(proof.MMRSizeB)
+
+	// Require the peak hash list length to match the number of peaks in the mmr
+	// state identified by the MMRSize's.
+	// This also catches the various corner cases where the hashes are incorrect lengths.
+	if len(peakHashesA) != len(peakPositionsA) {
 		return false
 	}
-
-	// There must be something to prove
-	if len(peakHashesA) == 0 {
+	if len(peakHashesB) != len(peakPositionsB) {
 		return false
 	}
-
-	// Catch the case where mmr b is exactly mmr a
-	if bytes.Equal(rootA, rootB) {
-		return true
-	}
-
-	// Check the peakHashesA, which will have been retrieved from the updated
-	// log, recreate rootA. rootA should have come from a previous Merkle
-	// Signed Root.
-	if !bytes.Equal(HashPeaksRHS(hasher, peakHashesA), rootA) {
-		return false
-	}
-
-	// Establish the node indices of the peaks in the original mmr A.  Those
-	// peak nodes must be at the same indices in mmr B for the update to be
-	// considered consistent. However, if mmr b has additional entries at all,
-	// some or all of those peaks from A will no longer be peaks in B.
-	peakPositions := Peaks(proof.MMRSizeA)
 
 	var ok bool
-	iPeakHashA := 0
+	var proofLen int
+	iPeakA := 0
+	iPeakB := 0
 	path := proof.Path
-	for ; iPeakHashA < len(peakHashesA); iPeakHashA++ {
 
-		// Verify that the peak from A is included in mmr B. As the interior
-		// node hashes commit the node position in the log, this can only
-		// succeed if the peaks are both included and placed in the same
-		// position.
-		nodeHash := peakHashesA[iPeakHashA]
+	posA := peakPositionsA[iPeakA] // pos because it may no longer be a peak in MMR(B)
+	for iPeakA < len(peakHashesA) {
 
-		var proofLen int
+		// Each a-peak in A will have as its root, the *first* b-peak in B whose
+		// position is >= the a-peak position. We may not, and typically will
+		// not, consume all the peaks in MMR(B).
+		// Note that where the a-peak is also present as a b-peak, the path will
+		// be empty and that VerifyInclusionPath deals with that case by
+		// requiring the provided leaf matches the provided root. The positions
+		// are naturally equal in both in this case.
 
-		ok, proofLen = VerifyFirstInclusionPath(
-			proof.MMRSizeB, hasher, nodeHash, peakPositions[iPeakHashA]-1,
-			path, rootB)
-		if !ok || proofLen > len(path) {
-			return false
+		peakB := peakPositionsB[iPeakB] // peak because it is a peak in MMR(B)
+		for posA <= peakB {
+			ok, proofLen = VerifyInclusionPath(
+				proof.MMRSizeB, hasher, peakHashesA[iPeakA], posA-1,
+				path, peakHashesB[iPeakB])
+			if !ok || proofLen > len(path) {
+				return false
+			}
+			// proofLen will be 0 in the case where posA == peakB,  and this works for the case where MMR(A) == MMR(B)
+			path = path[proofLen:]
+			iPeakA++
+			if iPeakA == len(peakHashesA) {
+				break
+			}
+			posA = peakPositionsA[iPeakA]
 		}
-		path = path[proofLen:]
+		iPeakB++
 	}
 
 	// Note: only return true if we have verified the complete path.
 	return ok && len(path) == 0
-}
-
-// CheckConsistency is used to check that a new log update is consistent With
-// respect to some previously known root and the current store.
-func CheckConsistency(
-	store indexStoreGetter, hasher hash.Hash,
-	cp ConsistencyProof, rootA []byte) (bool, []byte, error) {
-
-	iPeaks := Peaks(cp.MMRSizeA)
-
-	// logger.Sugar.Infof(".... PeakBagRHS: %v", iPeaks)
-	peakHashesA, err := PeakBagRHS(store, hasher, 0, iPeaks)
-	if err != nil {
-		return false, nil, err
-	}
-
-	// logger.Sugar.Infof(".... GetRoot")
-	rootB, err := GetRoot(cp.MMRSizeB, store, hasher)
-	if err != nil {
-		return false, nil, err
-	}
-
-	return VerifyConsistency(
-		hasher, peakHashesA, cp, rootA, rootB), rootB, nil
 }

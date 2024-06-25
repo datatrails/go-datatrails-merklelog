@@ -111,6 +111,20 @@ func TestIndexHeight(t *testing.T) {
 		// 1     2     5      9     12     17     20
 		//      / \   / \    / \   /  \   /  \
 		// 0   0   1 3   4  7   8 10  11 15  16 18 | 19
+		{
+			"1", args{1}, 0,
+		},
+
+		{
+			"0", args{0}, 0,
+		},
+
+		{
+			"three is 0", args{3}, 0,
+		},
+		{
+			"four is 0", args{4}, 0,
+		},
 
 		{
 			"nine is 1", args{9}, 1,
