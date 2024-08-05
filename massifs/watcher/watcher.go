@@ -62,9 +62,9 @@ func (w Watcher) ConfigString() string {
 }
 
 func ConfigDefaults(cfg *WatchConfig) error {
-	if cfg.Since.UnixMilli() == 0 || cfg.IDSince != "" && cfg.Horizon != 0 {
+	zeroTime := time.Time{}
+	if cfg.Since.UnixMilli() == zeroTime.UnixMilli() && cfg.IDSince == "" && cfg.Horizon == 0 {
 		return fmt.Errorf("provide horizon on its own or either of the since parameters.")
-
 	}
 	// If horizon is provided, the since values are derived
 
@@ -72,6 +72,7 @@ func ConfigDefaults(cfg *WatchConfig) error {
 		cfg.Interval = DefaultInterval
 	}
 
+	var sinceUnset bool
 	if cfg.Horizon == 0 {
 		// temporarily force a horizon
 		cfg.Horizon = time.Second * 30
@@ -80,9 +81,10 @@ func ConfigDefaults(cfg *WatchConfig) error {
 	// since defaults to now (but will get trumped by horizon if that was provided)
 	if cfg.Since.UnixMilli() == 0 {
 		cfg.Since = time.Now()
+		sinceUnset = true
 	}
-	// horizon trumps since
-	if cfg.Horizon > 0 {
+	// explicit horizon trumps since, and the default horizon trumps the default since
+	if cfg.Horizon > 0 && sinceUnset {
 		cfg.Since = time.Now().Add(-cfg.Horizon)
 	}
 	if cfg.IDSince == "" {
