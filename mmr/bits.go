@@ -13,7 +13,7 @@ func Log2Uint64(num uint64) uint64 {
 }
 
 func Log2Uint32(num uint32) uint32 {
-	return uint32(bits.Len32(num))
+	return uint32(bits.Len32(num) - 1)
 }
 
 func AllOnes(num uint64) bool {
