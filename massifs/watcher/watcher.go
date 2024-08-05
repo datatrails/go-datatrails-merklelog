@@ -62,8 +62,7 @@ func (w Watcher) ConfigString() string {
 }
 
 func ConfigDefaults(cfg *WatchConfig) error {
-	zeroTime := time.Time{}
-	if cfg.Since.UnixMilli() == zeroTime.UnixMilli() && cfg.IDSince == "" && cfg.Horizon == 0 {
+	if cfg.Since.Equal(time.Time{}) && cfg.IDSince == "" && cfg.Horizon == 0 {
 		return fmt.Errorf("provide horizon on its own or either of the since parameters.")
 	}
 	// If horizon is provided, the since values are derived
