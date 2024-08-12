@@ -10,30 +10,19 @@ import (
 )
 
 var (
-	ErrMassifNotFound = errors.New("the requested massif blob is not found")
+	ErrMassifNotFound          = errors.New("the requested massif blob is not found")
+	ErrLocalAccessNotSupported = errors.New("this reader implementation does not provide local filesystem access")
 )
-
-type MassifReaderOptions struct {
-	noGetRootSupport bool
-}
-
-type MassifReaderOption func(*MassifReaderOptions)
-
-func WithoutGetRootSupport() MassifReaderOption {
-	return func(opts *MassifReaderOptions) {
-		opts.noGetRootSupport = true
-	}
-}
 
 type MassifReader struct {
 	log   logger.Logger
 	store logBlobReader
-	opts  MassifReaderOptions
+	opts  ReaderOptions
 }
 
 func NewMassifReader(
 	log logger.Logger, store logBlobReader,
-	opts ...MassifReaderOption,
+	opts ...ReaderOption,
 ) MassifReader {
 	r := MassifReader{
 		log:   log,
@@ -47,8 +36,13 @@ func NewMassifReader(
 
 func (mr *MassifReader) GetMassif(
 	ctx context.Context, tenantIdentity string, massifIndex uint64,
-	opts ...azblob.Option,
+	opts ...ReaderOption,
 ) (MassifContext, error) {
+
+	options := ReaderOptionsCopy(mr.opts)
+	for _, o := range opts {
+		o(&options)
+	}
 
 	var err error
 	mc := MassifContext{
@@ -57,7 +51,7 @@ func (mr *MassifReader) GetMassif(
 			BlobPath: TenantMassifBlobPath(tenantIdentity, massifIndex),
 		},
 	}
-	if err = mr.readAndPrepareContext(ctx, &mc, opts...); err != nil {
+	if err = mr.readAndPrepareContext(ctx, &mc, options.remoteReadOpts...); err != nil {
 		return MassifContext{}, err
 	}
 	return mc, nil
@@ -83,8 +77,13 @@ func (mr *MassifReader) readAndPrepareContext(ctx context.Context, mc *MassifCon
 
 func (mr *MassifReader) GetHeadMassif(
 	ctx context.Context, tenantIdentity string,
-	opts ...azblob.Option,
+	opts ...ReaderOption,
 ) (MassifContext, error) {
+
+	options := ReaderOptionsCopy(mr.opts)
+	for _, o := range opts {
+		o(&options)
+	}
 
 	var err error
 	blobPrefixPath := TenantMassifPrefix(tenantIdentity)
@@ -93,14 +92,14 @@ func (mr *MassifReader) GetHeadMassif(
 		TenantIdentity: tenantIdentity,
 	}
 	var massifCount uint64
-	mc.LogBlobContext, massifCount, err = LastPrefixedBlob(ctx, mr.store, blobPrefixPath)
+	mc.LogBlobContext, massifCount, err = LastPrefixedBlob(ctx, mr.store, blobPrefixPath, options.remoteListOpts...)
 	if err != nil {
 		return MassifContext{}, err
 	}
 	if massifCount == 0 {
 		return MassifContext{}, ErrMassifNotFound
 	}
-	if err = mr.readAndPrepareContext(ctx, &mc, opts...); err != nil {
+	if err = mr.readAndPrepareContext(ctx, &mc, options.remoteReadOpts...); err != nil {
 		return MassifContext{}, err
 	}
 
@@ -110,8 +109,14 @@ func (mr *MassifReader) GetHeadMassif(
 // GetLazyContext reads the blob metadata of a logical blob but does _not_ read the data.
 func (mr *MassifReader) GetLazyContext(
 	ctx context.Context, tenantIdentity string, which LogicalBlob,
-	opts ...azblob.Option,
+	opts ...ReaderOption,
 ) (LogBlobContext, uint64, error) {
+
+	options := ReaderOptionsCopy(mr.opts)
+	for _, o := range opts {
+		o(&options)
+	}
+
 	blobPrefixPath := TenantMassifPrefix(tenantIdentity)
 
 	var massifIndex uint64
@@ -120,9 +125,9 @@ func (mr *MassifReader) GetLazyContext(
 	var logBlobContext LogBlobContext
 	switch which {
 	case FirstBlob:
-		logBlobContext, err = FirstPrefixedBlob(ctx, mr.store, blobPrefixPath, opts...)
+		logBlobContext, err = FirstPrefixedBlob(ctx, mr.store, blobPrefixPath, options.remoteListOpts...)
 	case LastBlob:
-		logBlobContext, massifIndex, err = LastPrefixedBlob(ctx, mr.store, blobPrefixPath, opts...)
+		logBlobContext, massifIndex, err = LastPrefixedBlob(ctx, mr.store, blobPrefixPath, options.remoteListOpts...)
 	}
 	if err != nil {
 		return LogBlobContext{}, 0, err
@@ -132,8 +137,13 @@ func (mr *MassifReader) GetLazyContext(
 
 func (mr *MassifReader) GetFirstMassif(
 	ctx context.Context, tenantIdentity string,
-	opts ...azblob.Option,
+	opts ...ReaderOption,
 ) (MassifContext, error) {
+
+	options := ReaderOptionsCopy(mr.opts)
+	for _, o := range opts {
+		o(&options)
+	}
 
 	var err error
 	blobPrefixPath := TenantMassifPrefix(tenantIdentity)
@@ -141,11 +151,11 @@ func (mr *MassifReader) GetFirstMassif(
 	mc := MassifContext{
 		TenantIdentity: tenantIdentity,
 	}
-	mc.LogBlobContext, err = FirstPrefixedBlob(ctx, mr.store, blobPrefixPath)
+	mc.LogBlobContext, err = FirstPrefixedBlob(ctx, mr.store, blobPrefixPath, options.remoteListOpts...)
 	if err != nil {
 		return MassifContext{}, err
 	}
-	if err = mr.readAndPrepareContext(ctx, &mc, opts...); err != nil {
+	if err = mr.readAndPrepareContext(ctx, &mc, options.remoteReadOpts...); err != nil {
 		return MassifContext{}, err
 	}
 

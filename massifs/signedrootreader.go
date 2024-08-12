@@ -6,13 +6,18 @@ import (
 
 	"github.com/datatrails/go-datatrails-common/azblob"
 	"github.com/datatrails/go-datatrails-common/cbor"
-	dtcose "github.com/datatrails/go-datatrails-common/cose"
+	"github.com/datatrails/go-datatrails-common/cose"
 	"github.com/datatrails/go-datatrails-common/logger"
 )
 
 var (
 	ErrLogContextNotRead = errors.New("attempted to use lastContext before it was read")
 )
+
+type SealedState struct {
+	Sign1Message cose.CoseSign1Message
+	MMRState     MMRState
+}
 
 // SignedRootReader provides a context for reading the signed tree head associated with a massif
 // Note: the acronym is due to RFC 9162
@@ -73,7 +78,7 @@ func (s *SignedRootReader) GetLazyContext(
 func (s *SignedRootReader) ReadLogicalContext(
 	ctx context.Context, logContext LogBlobContext,
 	opts ...azblob.Option,
-) (*dtcose.CoseSign1Message, MMRState, error) {
+) (*cose.CoseSign1Message, MMRState, error) {
 
 	err := logContext.ReadData(ctx, s.store, opts...)
 	if err != nil {
@@ -97,7 +102,7 @@ func (s *SignedRootReader) ReadLogicalContext(
 func (s *SignedRootReader) GetLatestSignedRoot(
 	ctx context.Context, tenantIdentity string,
 	opts ...azblob.Option,
-) (*dtcose.CoseSign1Message, MMRState, uint64, error) {
+) (*cose.CoseSign1Message, MMRState, uint64, error) {
 
 	blobPrefixPath := TenantMassifSignedRootsPrefix(tenantIdentity)
 
@@ -122,7 +127,7 @@ func (s *SignedRootReader) GetLatestSignedRoot(
 func (s *SignedRootReader) GetSignedRoot(
 	ctx context.Context, tenantIdentity string, massifIndex uint32,
 	opts ...azblob.Option,
-) (*dtcose.CoseSign1Message, MMRState, error) {
+) (*cose.CoseSign1Message, MMRState, error) {
 
 	blobPath := TenantMassifSignedRootPath(tenantIdentity, massifIndex)
 
@@ -148,7 +153,7 @@ func (s *SignedRootReader) GetSignedRoot(
 func (s *SignedRootReader) GetLatestMassifSignedRoot(
 	ctx context.Context, tenantIdentity string, massifIndex uint32,
 	opts ...azblob.Option,
-) (*dtcose.CoseSign1Message, MMRState, error) {
+) (*cose.CoseSign1Message, MMRState, error) {
 
 	logContext := LogBlobContext{
 		BlobPath: TenantMassifSignedRootPath(tenantIdentity, massifIndex),

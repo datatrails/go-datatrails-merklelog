@@ -46,9 +46,9 @@ const (
 
 	// MassifStart layout
 	//
-	// .         | type| idtimestamp| reserved |  version | epoch  |massif height| massif i |
-	// .         | 0   | 8        15|          |  21 - 22 | 23   26|27         27| 28 -  31 |
-	// bytes     | 1   |     8      |          |      2   |    4   |      1      |     4    |
+	// .         | reserved | idtimestamp| reserved |  version | epoch  |massif height| massif i |
+	// .         | 0        | 8        15|          |  21 - 22 | 23   26|27         27| 28 -  31 |
+	// bytes     | 1        |     8      |          |      2   |    4   |      1      |     4    |
 	//
 	// Note this layout produces a sequentially valued key. The value is always
 	// considered as a big endian large integer. Lexical ordering is defined
@@ -95,6 +95,7 @@ var (
 // The header field is written to the first 32 byte record in the blob.
 // See [Massif Basic File Format](https://github.com/datatrails/epic-8120-scalable-proof-mechanisms/blob/main/mmr/forestrie-mmrblobs.md#massif-basic-file-format)
 type MassifStart struct {
+	Reserved        uint64
 	MassifHeight    uint8
 	DataEpoch       uint8
 	Version         uint16
@@ -173,6 +174,7 @@ func DecodeMassifStart(ms *MassifStart, start []byte) error {
 		return ErrMassifFixedHeaderBadType
 	}
 
+	ms.Reserved = binary.BigEndian.Uint64(start[0:MassifStartKeyLastIDFirstByte])
 	ms.LastID = binary.BigEndian.Uint64(start[MassifStartKeyLastIDFirstByte:MassifStartKeyLastIDEnd])
 	ms.Version = binary.BigEndian.Uint16(start[MassifStartKeyVersionFirstByte:MassifStartKeyVersionEnd])
 	ms.CommitmentEpoch = binary.BigEndian.Uint32(start[MassifStartKeyEpochFirstByte:MassifStartKeyEpochEnd])
