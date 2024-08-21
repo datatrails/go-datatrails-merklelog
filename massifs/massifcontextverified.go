@@ -3,6 +3,7 @@ package massifs
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -169,7 +170,8 @@ func (mc *MassifContext) verifyContext(
 	pubKeyProvider := cose.NewCWTPublicKeyProvider(msg)
 
 	if options.trustedSealerPubKey != nil {
-		remotePub, _, err := pubKeyProvider.PublicKey()
+		var remotePub crypto.PublicKey
+		remotePub, _, err = pubKeyProvider.PublicKey()
 		if err != nil {
 			return nil, err
 		}
@@ -185,7 +187,8 @@ func (mc *MassifContext) verifyContext(
 		return nil, err
 	}
 
-	rootB, err := mc.CheckConsistency(state)
+	var rootB []byte
+	rootB, err = mc.CheckConsistency(state)
 	if err != nil {
 		return nil, err
 	}

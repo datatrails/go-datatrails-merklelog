@@ -275,7 +275,7 @@ func (c *LogDirCache) ReadMassifStart(logfile string) (MassifStart, string, erro
 func (c *LogDirCache) ReadMassif(directory string, massifIndex uint64) (*MassifContext, error) {
 
 	// If we haven't scanned this directory before, scan it now.
-	dirEntry, ok := c.entries[directory]
+	_, ok := c.entries[directory]
 	if !ok {
 		err := c.FindMassifFiles(directory)
 		if err != nil {
@@ -283,14 +283,14 @@ func (c *LogDirCache) ReadMassif(directory string, massifIndex uint64) (*MassifC
 		}
 	}
 	// If the scan did not find the massif path, ReadMassif will error
-	dirEntry = c.getDirEntry(directory)
+	dirEntry := c.getDirEntry(directory)
 	return dirEntry.ReadMassif(c, massifIndex)
 }
 
 func (c *LogDirCache) ReadSeal(directory string, massifIndex uint64) (*SealedState, error) {
 
 	// If we haven't scanned this directory before, scan it now.
-	dirEntry, ok := c.entries[directory]
+	_, ok := c.entries[directory]
 	if !ok {
 		err := c.FindSealFiles(directory)
 		if err != nil {
@@ -298,7 +298,7 @@ func (c *LogDirCache) ReadSeal(directory string, massifIndex uint64) (*SealedSta
 		}
 	}
 	// If the scan did not find the massif path, ReadMassif will error
-	dirEntry = c.getDirEntry(directory)
+	dirEntry := c.getDirEntry(directory)
 	return dirEntry.GetSeal(c, massifIndex)
 }
 
@@ -317,7 +317,7 @@ func (c *LogDirCache) ResolveDirectory(tenantIdentityOrLocalPath string) (string
 	var directory string
 	// If we are regular file or directory mode, require that the provided value is a directory or a file
 	if c.opts.replicaDir == "" {
-		directory, err := dirFromFilepath(tenantIdentityOrLocalPath)
+		directory, err = dirFromFilepath(tenantIdentityOrLocalPath)
 		if err != nil {
 			return "", err
 		}
