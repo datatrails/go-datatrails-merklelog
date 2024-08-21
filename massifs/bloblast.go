@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	azStorageBlob "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/datatrails/go-datatrails-common/azblob"
 )
 
@@ -15,7 +14,7 @@ var (
 // LastPrefixedBlob returns the details of last blob found under the prefix path
 // And the total number of blobs under the path.
 func LastPrefixedBlob(
-	ctx context.Context, store logBlobReader, blobPrefixPath string,
+	ctx context.Context, store LogBlobReader, blobPrefixPath string,
 	opts ...azblob.Option,
 ) (LogBlobContext, uint64, error) {
 
@@ -57,7 +56,7 @@ func LastPrefixedBlob(
 
 // FirstPrefixedBlob returns the first blob found under the prefix path
 func FirstPrefixedBlob(
-	ctx context.Context, store logBlobReader, blobPrefixPath string,
+	ctx context.Context, store LogBlobReader, blobPrefixPath string,
 	opts ...azblob.Option,
 ) (LogBlobContext, error) {
 
@@ -94,7 +93,7 @@ func FirstPrefixedBlob(
 // Un filled items are zero valued.
 func PrefixedBlobLastN(
 	ctx context.Context,
-	store logBlobReader,
+	store LogBlobReader,
 	blobPrefixPath string,
 	n int,
 	opts ...azblob.Option,
@@ -151,18 +150,4 @@ func PrefixedBlobLastN(
 
 	// Note massifIndex will be zero, the id of the first massif blob
 	return tail, foundCount, nil
-}
-
-func listResponseTags(blobTags *azStorageBlob.BlobTags) map[string]string {
-	if blobTags == nil {
-		return nil
-	}
-	tags := map[string]string{}
-	for _, tag := range blobTags.BlobTagSet {
-		if tag.Key == nil || tag.Value == nil {
-			continue
-		}
-		tags[*tag.Key] = *tag.Value
-	}
-	return tags
 }

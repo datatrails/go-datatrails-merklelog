@@ -28,6 +28,8 @@ includes:
   gotest:
     taskfile: ./taskfiles/Taskfile_gotest.yml
     dir: ./taskfiles
+  mock:
+    taskfile: ./taskfiles/Taskfile_mockery.yml
 
 tasks:
 

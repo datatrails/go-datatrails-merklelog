@@ -6,7 +6,7 @@ import (
 	"github.com/datatrails/go-datatrails-common/azblob"
 )
 
-type logBlobReader interface {
+type LogBlobReader interface {
 	Reader(
 		ctx context.Context,
 		identity string,

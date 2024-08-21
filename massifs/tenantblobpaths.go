@@ -1,6 +1,9 @@
 package massifs
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	V1MMRPrefix       = "v1/mmrs"
@@ -67,6 +70,20 @@ func TenantMassifBlobPath(tenantIdentity string, number uint64) string {
 	return fmt.Sprintf(
 		"%s%s", TenantMassifPrefix(tenantIdentity), fmt.Sprintf(V1MMRBlobNameFmt, number),
 	)
+}
+
+// TenantRelativeMassifPath returns the blob path with the leading tenant identity and version schema striped.
+func TenantRelativeMassifPath(tenantIdentity string, number uint32) string {
+	return strings.TrimPrefix(
+		strings.TrimPrefix(
+			V1MMRPrefix, TenantMassifBlobPath(tenantIdentity, uint64(number))), tenantIdentity)
+}
+
+// TenantRelativeSealPath returns the seal path with the leading tenant identity and version schema striped.
+func TenantRelativeSealPath(tenantIdentity string, number uint32) string {
+	return strings.TrimPrefix(
+		strings.TrimPrefix(
+			V1MMRPrefix, TenantMassifSignedRootPath(tenantIdentity, number)), tenantIdentity)
 }
 
 // TenantMassifSignedRootPath returns the appropriate blob path for the blob

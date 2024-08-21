@@ -8,7 +8,7 @@ import (
 	"github.com/datatrails/go-datatrails-common/logger"
 )
 
-type VisitFilterResponse func(ctx context.Context, store logBlobReader, it *azStorageBlob.FilterBlobItem) (bool, error)
+type VisitFilterResponse func(ctx context.Context, store LogBlobReader, it *azStorageBlob.FilterBlobItem) (bool, error)
 
 // FilterBlobs selects blobs using the provided filter expression
 // and application of the provided visitor (which may be nil)
@@ -19,7 +19,7 @@ type VisitFilterResponse func(ctx context.Context, store logBlobReader, it *azSt
 //	All blobs in a specific container
 //		"@container='zoo' AND cat='tiger' AND penguin='emperorpenguin'"
 func FilterBlobs(
-	ctx context.Context, store logBlobReader,
+	ctx context.Context, store LogBlobReader,
 	tagsFilter string,
 	visit VisitFilterResponse,
 	marker azblob.ListMarker,
@@ -73,7 +73,7 @@ type ParseIdentifyingSegment func(blobPath string) (string, error)
 // those keys. If the parse callback errors, the enumeration is terminated and
 // that error is returned.
 func EnumerateIdentifiedPaths(
-	ctx context.Context, store logBlobReader, blobPrefixPath string,
+	ctx context.Context, store LogBlobReader, blobPrefixPath string,
 	parseID ParseIdentifyingSegment,
 	found map[string]any,
 	marker azblob.ListMarker,

@@ -9,7 +9,7 @@ import (
 	"github.com/datatrails/go-datatrails-merklelog/mmrtesting"
 )
 
-func generateNumberedLeaf(tenantIdentity string, base, i uint64) mmrtesting.AddLeafArgs {
+func MMRTestingGenerateNumberedLeaf(tenantIdentity string, base, i uint64) mmrtesting.AddLeafArgs {
 	h := sha256.New()
 	mmrtesting.HashWriteUint64(h, base+i)
 
@@ -42,7 +42,7 @@ func NewAzuriteTestContext(
 			TenantIdentity:  cfg.TenantIdentity,
 			TestLabelPrefix: cfg.TestLabelPrefix,
 		},
-		generateNumberedLeaf,
+		MMRTestingGenerateNumberedLeaf,
 	)
 	return tc, g, cfg
 }

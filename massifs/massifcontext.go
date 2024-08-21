@@ -1,10 +1,12 @@
 package massifs
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
+	"maps"
 
 	"github.com/datatrails/go-datatrails-common/logger"
 	"github.com/datatrails/go-datatrails-merklelog/massifs/snowflakeid"
@@ -91,6 +93,15 @@ type MassifContext struct {
 	nextAncestor int
 
 	peakStackMap map[uint64]int
+}
+
+func (mc *MassifContext) CopyPeakStack() map[uint64]int {
+	if mc.peakStackMap == nil {
+		return nil
+	}
+	m := map[uint64]int{}
+	maps.Copy(m, mc.peakStackMap)
+	return m
 }
 
 // CreatePeakStackMap generates a mapping of the peaks carried over from previous
@@ -408,6 +419,56 @@ func (mc *MassifContext) AddHashedLeaf(
 
 	// Returns the new MMR size if the new leaf is added successfully
 	return mmr.AddHashedLeaf(mc, hasher, value)
+}
+
+// CheckConsistency checks that the data in the massif is consistent with the provided state.
+//
+// This generates a consistency proof from the mmr index identified by the state
+// size to the last mmr index present in the context. That proof is then
+// verified as consistent with the root provided in the base state.
+//
+// Returns:
+//   - the latest root on success
+//   - an error otherwise (the returned root is nil)
+func (mc *MassifContext) CheckConsistency(baseState MMRState) ([]byte, error) {
+
+	mmrSizeCurrent := mc.RangeCount()
+
+	if mmrSizeCurrent < baseState.MMRSize {
+		return nil, ErrStateSizeBeforeMassifStart
+	}
+
+	// If the size has not advanced return the previously signed state.
+	if mmrSizeCurrent == baseState.MMRSize {
+		// There are two cases of note, but we can treat them equivalently here
+		// 1. The massif is complete
+		// 2. There have been no further entries on an incomplete massif
+		return nil, nil
+	}
+
+	cp, err := mmr.IndexConsistencyProof(
+		baseState.MMRSize, mmrSizeCurrent, mc, sha256.New())
+	if err != nil {
+		return nil, fmt.Errorf(
+			"%w: failed to produce proof. tenant=%s, massif=%d",
+			ErrGeneratingConsistencyProof, mc.TenantIdentity, mc.Start.MassifIndex)
+	}
+
+	ok, rootB, err := mmr.CheckConsistency(mc, sha256.New(), cp, baseState.Root)
+	if err != nil {
+		return nil,
+			fmt.Errorf("%w: proof verification error: err=%s, tenant=%s, massif=%d",
+				ErrConsistencyProofCheck,
+				err.Error(), mc.TenantIdentity, mc.Start.MassifIndex)
+	}
+	if !ok {
+		return nil,
+			fmt.Errorf("%w: proof verification check tenant=%s, massif=%d",
+				ErrInconsistentState,
+				mc.TenantIdentity, mc.Start.MassifIndex)
+	}
+
+	return rootB, nil
 }
 
 // setLastIdTimestamp must be called after A

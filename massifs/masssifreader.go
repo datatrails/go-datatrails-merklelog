@@ -16,12 +16,12 @@ var (
 
 type MassifReader struct {
 	log   logger.Logger
-	store logBlobReader
+	store LogBlobReader
 	opts  ReaderOptions
 }
 
 func NewMassifReader(
-	log logger.Logger, store logBlobReader,
+	log logger.Logger, store LogBlobReader,
 	opts ...ReaderOption,
 ) MassifReader {
 	r := MassifReader{

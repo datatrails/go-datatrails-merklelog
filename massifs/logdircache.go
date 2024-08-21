@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,6 +22,8 @@ var (
 	ErrLogFileSealNotFound           = errors.New("a log seal corresponding to the massif index was not found")
 	ErrMassifDirListerNotProvided    = errors.New("the reader option providing a massif directory lister was not provided")
 	ErrSealDirListerNotProvided      = errors.New("the reader option providing a massif seal directory lister was not provided")
+	ErrAddSealExists                 = errors.New("attempt to add a sealed stated entry that already exists")
+	ErrLogMassifHeightNotProvided    = errors.New("a consistent massif height must be specified for all files logically part of the same log")
 )
 
 type DirLister interface {
@@ -33,6 +34,82 @@ type DirLister interface {
 
 type Opener interface {
 	Open(string) (io.ReadCloser, error)
+}
+
+type DirCache interface {
+	DirResolver
+	ReplaceMassif(logfile string, mc *MassifContext) error
+	ReplaceSeal(sealFilename string, massifIndex uint32, sealedState *SealedState) error
+	DeleteEntry(directory string)
+	GetEntry(directory string) (*LogDirCacheEntry, bool)
+	FindMassifFiles(directory string) error
+	ReadMassifStart(filepath string) (MassifStart, string, error)
+	ReadMassif(directory string, massifIndex uint64) (*MassifContext, error)
+	ReadSeal(directory string, massifIndex uint64) (*SealedState, error)
+	Open(fileName string) (io.ReadCloser, error)
+	Options() DirCacheOptions
+}
+
+type DirCacheOptions struct {
+	ReaderOptions
+
+	// The following options are only relevant to reader implementations which provide for local file access
+	massifDirLister DirLister
+	sealDirLister   DirLister
+
+	// readers which operate on a local replica of multiple tenant logs specify the root of the replica using this option
+	// The paths under this location match the path schema used by datatrails for the cloud storage of tenant logs
+	replicaDir string
+}
+
+// NewLogDirCacheOptions creates a new DirCacheOptions object with the provided options
+// Typically, this is used for mocking as the options values are private
+func NewLogDirCacheOptions(baseOpts ReaderOptions, opts ...DirCacheOption) DirCacheOptions {
+
+	options := DirCacheOptions{
+		ReaderOptions: ReaderOptionsCopy(baseOpts),
+	}
+	for _, o := range opts {
+		o(&options)
+	}
+	return options
+}
+
+type DirCacheOption func(*DirCacheOptions)
+
+// WithoutGetRootSupport disables the random access map for the peak stack.
+// This typically should only be set by log builders
+func WithoutLocalGetRootSupport() DirCacheOption {
+	return func(opts *DirCacheOptions) {
+		opts.noGetRootSupport = true
+	}
+}
+
+func WithReaderOption(o ReaderOption) DirCacheOption {
+	return func(opts *DirCacheOptions) {
+		o(&opts.ReaderOptions)
+	}
+}
+
+// WithDirCacheReplicaDir specifies a directory under which a local filesystem
+// replica of one or more tenant logs is maintained. The filesystem structure
+// matches the remote log path structure
+func WithDirCacheReplicaDir(replicaDir string) DirCacheOption {
+	return func(o *DirCacheOptions) {
+		o.replicaDir = replicaDir
+	}
+}
+
+func WithDirCacheMassifLister(dirLister DirLister) DirCacheOption {
+	return func(o *DirCacheOptions) {
+		o.massifDirLister = dirLister
+	}
+}
+
+func WithDirCacheSealLister(dirLister DirLister) DirCacheOption {
+	return func(o *DirCacheOptions) {
+		o.sealDirLister = dirLister
+	}
 }
 
 type LogDirCacheEntry struct {
@@ -68,12 +145,12 @@ func NewLogDirCacheEntry(directory string) *LogDirCacheEntry {
 // implementation assumes single threaded access. it is not go routine safe.
 type LogDirCache struct {
 	log     logger.Logger
-	opts    LocalReaderOptions
+	opts    DirCacheOptions
 	entries map[string]*LogDirCacheEntry
 	opener  Opener
 }
 
-func NewLogDirCache(log logger.Logger, opener Opener, opts ...LocalReaderOption) *LogDirCache {
+func NewLogDirCache(log logger.Logger, opener Opener, opts ...DirCacheOption) (*LogDirCache, error) {
 	c := &LogDirCache{
 		log:     log,
 		entries: make(map[string]*LogDirCacheEntry),
@@ -83,10 +160,13 @@ func NewLogDirCache(log logger.Logger, opener Opener, opts ...LocalReaderOption)
 	for _, o := range opts {
 		o(&c.opts)
 	}
-	return c
+	if c.opts.massifHeight == 0 {
+		return nil, ErrLogMassifHeightNotProvided
+	}
+	return c, nil
 }
 
-func (c *LogDirCache) Options() LocalReaderOptions {
+func (c *LogDirCache) Options() DirCacheOptions {
 	return c.opts
 }
 
@@ -99,9 +179,40 @@ func (c *LogDirCache) DeleteEntry(directory string) {
 	delete(c.entries, directory)
 }
 
+// GetEntry returns an existing entry and true or nil and false if the directory does not exist
 func (c *LogDirCache) GetEntry(directory string) (*LogDirCacheEntry, bool) {
 	d, ok := c.entries[directory]
 	return d, ok
+}
+
+// ReplaceMassif adds the massif context to the appropriate directory entry
+//
+// The caller is responsible for providing a fully initialized context (as returned by ReadMassif).
+// It is safe for the caller to defer reading the data, provided it guarantees
+// to read and finalize the context before any call to ReadMassif.
+// The cache entry setup (max / min massif index etc) depends only on
+// information in the Start of the context.
+func (c *LogDirCache) ReplaceMassif(logfile string, mc *MassifContext) error {
+	dirEntry := c.getDirEntry(filepath.Dir(logfile))
+	err := dirEntry.setMassifStart(c.opts, logfile, mc.Start)
+	if err != nil {
+		return err
+	}
+
+	// note: it is the callers choice on whether to create the peak stack map
+	dirEntry.Massifs[logfile] = mc
+	return nil
+}
+
+func (c *LogDirCache) ReplaceSeal(sealFilename string, massifIndex uint32, sealedState *SealedState) error {
+	dirEntry := c.getDirEntry(filepath.Dir(sealFilename))
+	err := dirEntry.setSeal(massifIndex, sealFilename, sealedState)
+	if err != nil {
+		return err
+	}
+
+	dirEntry.Seals[sealFilename] = sealedState
+	return nil
 }
 
 // FindLogFiles finds and reads massif files from the provided directory
@@ -126,6 +237,29 @@ func (c *LogDirCache) FindMassifFiles(directory string) error {
 	return nil
 }
 
+// FindSealFiles finds and reads massif seal files from the provided directory
+func (c *LogDirCache) FindSealFiles(directory string) error {
+
+	dirEntry := c.getDirEntry(directory)
+
+	// read all the entries in our log dir
+	entries, err := c.opts.sealDirLister.ListFiles(directory)
+	if err != nil {
+		return err
+	}
+
+	// for each entry we read the header (first 32 bytes)
+	// and do rough checks if the header looks like it's from a valid log
+	for _, filepath := range entries {
+
+		_, err := dirEntry.ReadSeal(c, filepath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ReadMassifStart reads and caches the start header for the log file
 // The directory for the cache entry is established from the logfile name
 // The established directory for the cache entry is returned
@@ -138,14 +272,14 @@ func (c *LogDirCache) ReadMassifStart(logfile string) (MassifStart, string, erro
 // ReadMassif reads the massif, identified by its index, from the provided
 // directory A directory cache entry is established for directory if it has not
 // previously been scanned, otherwise, the previous scan is re-used.
-func (c *LogDirCache) ReadMassif(directory string, massifIndex uint64) (MassifContext, error) {
+func (c *LogDirCache) ReadMassif(directory string, massifIndex uint64) (*MassifContext, error) {
 
 	// If we haven't scanned this directory before, scan it now.
 	dirEntry, ok := c.entries[directory]
 	if !ok {
 		err := c.FindMassifFiles(directory)
 		if err != nil {
-			return MassifContext{}, err
+			return nil, err
 		}
 	}
 	// If the scan did not find the massif path, ReadMassif will error
@@ -153,14 +287,31 @@ func (c *LogDirCache) ReadMassif(directory string, massifIndex uint64) (MassifCo
 	return dirEntry.ReadMassif(c, massifIndex)
 }
 
+func (c *LogDirCache) ReadSeal(directory string, massifIndex uint64) (*SealedState, error) {
+
+	// If we haven't scanned this directory before, scan it now.
+	dirEntry, ok := c.entries[directory]
+	if !ok {
+		err := c.FindSealFiles(directory)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// If the scan did not find the massif path, ReadMassif will error
+	dirEntry = c.getDirEntry(directory)
+	return dirEntry.GetSeal(c, massifIndex)
+}
+
 // ResolveDirectory resolves a string which may be either a tenant identity or a local path.
 //
-// If we are regular file or directory mode, this requires that the provided value is a directory or a file.
+// If we are regular file or directory mode, this requires that the provided
+// value is a directory or a file.
+//
 // In replica mode, derive the path using the tenantIdentity, and the massif
 // blob path schema, and similarly require an existing file path.
 //
 // Returns
-//   - a directory which exists locally or the empty string and an error otherwise
+//   - a directory path
 func (c *LogDirCache) ResolveDirectory(tenantIdentityOrLocalPath string) (string, error) {
 	var err error
 	var directory string
@@ -199,100 +350,100 @@ func (c *LogDirCache) getDirEntry(directory string) *LogDirCacheEntry {
 
 // ReadMassif returns a MassifContext for the provided massifIndex
 // If it has been previously read and prepared, an independent copy of the previously read MassifContext is returned.
-func (d *LogDirCacheEntry) ReadMassif(c DirCache, massifIndex uint64) (MassifContext, error) {
+func (d *LogDirCacheEntry) ReadMassif(c DirCache, massifIndex uint64) (*MassifContext, error) {
 	var err error
 	var ok bool
 	var fileName string
 	var cached *MassifContext
 	// check if massif with particular index was found
 	if fileName, ok = d.MassifPaths[massifIndex]; !ok {
-		return MassifContext{}, fmt.Errorf("%v: %d", ErrLogFileMassifNotFound, massifIndex)
+		return nil, fmt.Errorf("%v: %d", ErrLogFileMassifNotFound, massifIndex)
 	}
 
 	if cached, ok = d.Massifs[fileName]; ok {
-		mc := *cached
-		mc.peakStackMap = nil
-		maps.Copy(mc.peakStackMap, cached.peakStackMap)
-		return mc, nil
+		return cached, nil
 	}
 
 	cached = &MassifContext{}
 
 	reader, err := c.Open(fileName)
 	if err != nil {
-		return MassifContext{}, err
+		return nil, err
 	}
 	defer reader.Close()
 
 	// read the data from a file
 	cached.Data, err = io.ReadAll(reader)
 	if err != nil {
-		return MassifContext{}, err
+		return nil, err
 	}
 
 	// unmarshal
 	err = cached.Start.UnmarshalBinary(cached.Data)
 	if err != nil {
-		return MassifContext{}, err
+		return nil, err
 	}
 
 	if !c.Options().noGetRootSupport {
 		if err = cached.CreatePeakStackMap(); err != nil {
-			return MassifContext{}, err
+			return nil, err
 		}
 	}
 
 	d.Massifs[fileName] = cached
 
-	// return an independent copy so that the caller can use direct assignment
-	mc := *cached
-	mc.peakStackMap = nil
-	maps.Copy(mc.peakStackMap, cached.peakStackMap)
-
-	return mc, nil
+	return cached, nil
 }
 
-func (d *LogDirCacheEntry) readSealedState(c DirCache, massifIndex uint64) (SealedState, error) {
-	var err error
+func (d *LogDirCacheEntry) GetSeal(c DirCache, massifIndex uint64) (*SealedState, error) {
 	var ok bool
 	var fileName string
 	var cached *SealedState
 	// check if seal with particular index was found
 	if fileName, ok = d.SealPaths[massifIndex]; !ok {
-		return SealedState{}, fmt.Errorf("%v: %d", ErrLogFileSealNotFound, massifIndex)
+		return nil, fmt.Errorf("%v: %d", ErrLogFileSealNotFound, massifIndex)
 	}
 
 	if cached, ok = d.Seals[fileName]; ok {
-		sealedState := *cached
-		*sealedState.Sign1Message.Sign1Message = *cached.Sign1Message.Sign1Message
-		return sealedState, nil
+		return cached, nil
+	}
+	return nil, fmt.Errorf("%v: %d", ErrLogFileSealNotFound, massifIndex)
+}
+
+func (d *LogDirCacheEntry) ReadSeal(c DirCache, fileName string) (*SealedState, error) {
+	var err error
+	var ok bool
+	var cached *SealedState
+
+	if cached, ok = d.Seals[fileName]; ok {
+		return cached, nil
 	}
 
 	cached = &SealedState{}
 
 	reader, err := c.Open(fileName)
 	if err != nil {
-		return SealedState{}, err
+		return nil, err
 	}
 	defer reader.Close()
 
 	// read the data from a file
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return SealedState{}, err
+		return nil, err
 	}
-	cachedMessage, unverifiedState, err := DecodeSignedRoot(c.Options().codec, data)
+	cachedMessage, unverifiedState, err := DecodeSignedRoot(*c.Options().codec, data)
 	if err != nil {
-		return SealedState{}, err
+		return nil, err
 	}
 	cached.MMRState = unverifiedState
 	cached.Sign1Message = *cachedMessage
 
 	d.Seals[fileName] = cached
-	sealedState := *cached
-	*sealedState.Sign1Message.Sign1Message = *cached.Sign1Message.Sign1Message
+	massifIndex := MassifIndexFromMMRIndex(c.Options().massifHeight, unverifiedState.MMRSize-1)
+	d.SealPaths[massifIndex] = fileName
 
-	return sealedState, nil
+	return cached, nil
 }
 
 func (d *LogDirCacheEntry) ReadMassifStart(dirCache *LogDirCache, logfile string) (MassifStart, error) {
@@ -325,21 +476,29 @@ func (d *LogDirCacheEntry) ReadMassifStart(dirCache *LogDirCache, logfile string
 	if err != nil {
 		return MassifStart{}, err
 	}
+	err = d.setMassifStart(dirCache.opts, logfile, ms)
+	if err != nil {
+		return MassifStart{}, err
+	}
 
+	return ms, nil
+}
+
+func (d *LogDirCacheEntry) setMassifStart(opts DirCacheOptions, logfile string, ms MassifStart) error {
 	// The type field is currently zero
 	if ms.Reserved != 0 {
-		return MassifStart{}, fmt.Errorf("%w: reserved bytes not zero", ErrLogFileNoMagic)
+		return fmt.Errorf("%w: reserved bytes not zero", ErrLogFileNoMagic)
 	}
 	if ms.Version != 0 {
-		return MassifStart{}, fmt.Errorf("%w: unexpected (or not supported) massif version: %d", ErrLogFileNoMagic, ms.Version)
+		return fmt.Errorf("%w: unexpected (or not supported) massif version: %d", ErrLogFileNoMagic, ms.Version)
 	}
 
 	// note: we could require the epoch to be 1, but that would interfere with testing
 	// same for the massifHeight
 
 	// If the options require a specific massif height check the height we got from the header.
-	if dirCache.opts.requireMassifHeight != 0 && ms.MassifHeight != dirCache.opts.requireMassifHeight {
-		return MassifStart{}, fmt.Errorf("%w: header=%d, expected=%d", ErrLogFileMassifHeightHeader, ms.MassifHeight, dirCache.opts.requireMassifHeight)
+	if opts.massifHeight != 0 && ms.MassifHeight != opts.massifHeight {
+		return fmt.Errorf("%w: header=%d, expected=%d", ErrLogFileMassifHeightHeader, ms.MassifHeight, opts.massifHeight)
 	}
 
 	// if we already have a log with the same massifIndex, read from a
@@ -347,7 +506,7 @@ func (d *LogDirCacheEntry) ReadMassifStart(dirCache *LogDirCache, logfile string
 	// potentially not for the same tenancy - which means the data is not
 	// correct
 	if cachedLogFile, ok := d.MassifPaths[uint64(ms.MassifIndex)]; ok && cachedLogFile != logfile {
-		return MassifStart{}, fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedLogFile, logfile)
+		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedLogFile, logfile)
 	}
 
 	// associate filename with the massif index
@@ -363,8 +522,36 @@ func (d *LogDirCacheEntry) ReadMassifStart(dirCache *LogDirCache, logfile string
 	if ms.MassifIndex < d.FirstMassifIndex {
 		d.FirstMassifIndex = ms.MassifIndex
 	}
+	return nil
+}
 
-	return ms, nil
+// err := dirEntry.setSeal(c.opts, sealFilename, massifIndex, sealedState)
+func (d *LogDirCacheEntry) setSeal(
+	massifIndex uint32, sealFilename string, seal *SealedState,
+) error {
+
+	// if we already have a log with the same massifIndex, read from a
+	// *different file*, we error out as the files in directories are
+	// potentially not for the same tenancy - which means the data is not
+	// correct
+	if cachedSealFile, ok := d.SealPaths[uint64(massifIndex)]; ok && cachedSealFile != sealFilename {
+		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedSealFile, sealFilename)
+	}
+
+	// associate filename with the massif index
+	d.SealPaths[uint64(massifIndex)] = sealFilename
+	d.Seals[sealFilename] = seal
+
+	// update the head massif index if we have new one
+	if massifIndex > d.HeadSealIndex {
+		d.HeadSealIndex = massifIndex
+	}
+
+	// update the first massif index if we have new one
+	if massifIndex < d.FirstMassifIndex {
+		d.FirstSealIndex = massifIndex
+	}
+	return nil
 }
 
 // tenantReplicaPath normalizes a tenantIdentity to conform to our remotes

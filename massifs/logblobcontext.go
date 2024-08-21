@@ -2,6 +2,7 @@ package massifs
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	"github.com/datatrails/go-datatrails-common/azblob"
@@ -24,11 +25,20 @@ type LogBlobContext struct {
 	ContentLength int64
 }
 
+func (lc *LogBlobContext) CopyTags() map[string]string {
+	if lc.Tags == nil {
+		return lc.Tags
+	}
+	m := map[string]string{}
+	maps.Copy(m, lc.Tags)
+	return m
+}
+
 // ReadData reads the data from the blob at BlobPath
 // The various metadata fields are populated from the blob store response
 // On return, the Data member containes the blob contents
 func (lc *LogBlobContext) ReadData(
-	ctx context.Context, store logBlobReader, opts ...azblob.Option) error {
+	ctx context.Context, store LogBlobReader, opts ...azblob.Option) error {
 
 	var err error
 	var rr *azblob.ReaderResponse

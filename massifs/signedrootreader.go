@@ -14,6 +14,14 @@ var (
 	ErrLogContextNotRead = errors.New("attempted to use lastContext before it was read")
 )
 
+// SealGetter supports reading a massif seal identified by a specific massif index
+type SealGetter interface {
+	GetSignedRoot(
+		ctx context.Context, tenantIdentity string, massifIndex uint32,
+		opts ...ReaderOption,
+	) (*cose.CoseSign1Message, MMRState, error)
+}
+
 type SealedState struct {
 	Sign1Message cose.CoseSign1Message
 	MMRState     MMRState
@@ -23,14 +31,14 @@ type SealedState struct {
 // Note: the acronym is due to RFC 9162
 type SignedRootReader struct {
 	log   logger.Logger
-	store logBlobReader
+	store LogBlobReader
 	codec cbor.CBORCodec
 	// lastContext saves the last context read from blob store, this includes
 	// Tags if they were requested
 	lastContext LogBlobContext
 }
 
-func NewSignedRootReader(log logger.Logger, store logBlobReader, codec cbor.CBORCodec) SignedRootReader {
+func NewSignedRootReader(log logger.Logger, store LogBlobReader, codec cbor.CBORCodec) SignedRootReader {
 	r := SignedRootReader{
 		log:   log,
 		store: store,
@@ -126,8 +134,13 @@ func (s *SignedRootReader) GetLatestSignedRoot(
 // the previous root will be for the previous massif.
 func (s *SignedRootReader) GetSignedRoot(
 	ctx context.Context, tenantIdentity string, massifIndex uint32,
-	opts ...azblob.Option,
+	opts ...ReaderOption,
 ) (*cose.CoseSign1Message, MMRState, error) {
+
+	options := ReaderOptions{}
+	for _, o := range opts {
+		o(&options)
+	}
 
 	blobPath := TenantMassifSignedRootPath(tenantIdentity, massifIndex)
 
@@ -135,7 +148,7 @@ func (s *SignedRootReader) GetSignedRoot(
 		BlobPath: blobPath,
 	}
 
-	signed, unverifiedState, err := s.ReadLogicalContext(ctx, logContext, opts...)
+	signed, unverifiedState, err := s.ReadLogicalContext(ctx, logContext, options.remoteReadOpts...)
 
 	return signed, unverifiedState, err
 }

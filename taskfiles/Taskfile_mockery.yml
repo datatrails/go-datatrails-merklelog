@@ -1,0 +1,23 @@
+version: '3'
+
+# mockery tends to create mocks that have import cycles.
+# to mitigate we delete all unused mocks after the mocks are generated.
+# TODO: use a version of mock that does not do this or find another
+# tool.
+
+tasks:
+  generate:
+    desc: generates all the mocks
+  deps:
+    - task: massifs
+
+  massifs:
+    desc: generate the massifs mocks
+    dir: massifs
+
+    cmds:
+      - |
+        set -euo pipefail
+        unset MOCKERY_VERSION
+        rm -rf ./mocks/*
+        mockery --all --exported --dir . --output ./mocks

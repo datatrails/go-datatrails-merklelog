@@ -78,7 +78,7 @@ func ConfigDefaults(cfg *WatchConfig) error {
 	}
 
 	// since defaults to now (but will get trumped by horizon if that was provided)
-	if cfg.Since.UnixMilli() == 0 {
+	if cfg.Since.Equal(time.Time{}) {
 		cfg.Since = time.Now()
 		sinceUnset = true
 	}
