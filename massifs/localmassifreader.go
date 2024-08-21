@@ -57,22 +57,27 @@ func NewLocalReader(
 	return r, nil
 }
 
+// InReplicaMode returns true if the reader is in replica mode
 func (r *LocalReader) InReplicaMode() bool {
 	return r.cache.Options().replicaDir == ""
 }
 
+// GetReplicaDir returns the replica directory
 func (r *LocalReader) GetReplicaDir() string {
 	return r.cache.Options().replicaDir
 }
 
+// GetDirEntry returns the directory entry for the given tenant identity or local path
 func (r *LocalReader) GetDirEntry(tenantIdentityOrLocalPath string) (*LogDirCacheEntry, bool) {
 	return r.cache.GetEntry(tenantIdentityOrLocalPath)
 }
 
+// ResolveDirectory resolves the tenant identity or local path to a directory
 func (r *LocalReader) ResolveDirectory(tenantIdentityOrLocalPath string) (string, error) {
 	return r.cache.ResolveDirectory(tenantIdentityOrLocalPath)
 }
 
+// ReadMassifStart reads the massif start from the given log file
 func (r *LocalReader) ReadMassifStart(logfile string) (MassifStart, string, error) {
 	return r.cache.ReadMassifStart(logfile)
 }
@@ -119,6 +124,7 @@ func (r *LocalReader) GetHeadVerifiedContext(
 	return mc.verifyContext(ctx, options)
 }
 
+// VerifyContext verifies an arbitrary context and returns a verified context if this succeeds.
 func (r *LocalReader) VerifyContext(
 	ctx context.Context, mc MassifContext,
 	opts ...ReaderOption,
@@ -130,6 +136,8 @@ func (r *LocalReader) VerifyContext(
 	return mc.verifyContext(ctx, options)
 }
 
+// ReplaceVerifiedContext replaces the verified context with an updated on, it
+// is the callers responsibility to ensure the context was verified.
 func (r *LocalReader) ReplaceVerifiedContext(
 	ctx context.Context, vc *VerifiedContext,
 ) error {
@@ -155,6 +163,7 @@ func (r *LocalReader) ReplaceVerifiedContext(
 	})
 }
 
+// GetMassif reads the massif identified by the tenant identity and massif index
 func (r *LocalReader) GetMassif(
 	ctx context.Context, tenantIdentityOrLocalPath string, massifIndex uint64,
 	opts ...ReaderOption,
@@ -174,6 +183,7 @@ func (r *LocalReader) GetMassif(
 	return copyCachedMassifOrErr(r.cache.ReadMassif(directory, massifIndex))
 }
 
+// GetSeal reads the seal identified by the tenant identity and massif index
 func (r *LocalReader) GetSeal(
 	ctx context.Context, tenantIdentityOrLocalPath string, massifIndex uint64,
 	opts ...ReaderOption,
@@ -193,6 +203,7 @@ func (r *LocalReader) GetSeal(
 	return copyCachedSealOrErr(r.cache.ReadSeal(directory, massifIndex))
 }
 
+// GetHeadMassif reads the most recent massif in the log identified by the tenant identity
 func (r *LocalReader) GetHeadMassif(
 	ctx context.Context, tenantIdentityOrLocalPath string,
 	opts ...ReaderOption,
@@ -244,10 +255,12 @@ func (r *LocalReader) GetFirstMassif(
 	return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, uint64(dirEntry.FirstMassifIndex)))
 }
 
+// GetMassifLocalPath returns the local path for the massif identified by the tenant identity and massif index
 func (r *LocalReader) GetMassifLocalPath(tenantIdentity string, massifIndex uint32) string {
 	return filepath.Join(r.GetReplicaDir(), TenantRelativeMassifPath(tenantIdentity, massifIndex))
 }
 
+// GetSealLocalPath returns the local path for the seal identified by the tenant identity and massif index
 func (r *LocalReader) GetSealLocalPath(tenantIdentity string, massifIndex uint32) string {
 	return filepath.Join(r.GetReplicaDir(), TenantRelativeSealPath(tenantIdentity, massifIndex))
 }

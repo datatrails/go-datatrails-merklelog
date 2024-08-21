@@ -43,7 +43,7 @@ func TestEnumerateTenants(t *testing.T) {
 	seed := int64((1698342521) * 1000)
 	g := mmrtesting.NewTestGenerator(t, seed, mmrtesting.TestGeneratorConfig{
 		StartTimeMS: seed, EventRate: 500,
-		TestLabelPrefix: "TestEnumerateTenants"}, MMRTestingMMRTestingMMRTestingMMRTestingGenerateNumberedLeaf)
+		TestLabelPrefix: "TestEnumerateTenants"}, MMRTestingGenerateNumberedLeaf)
 
 	type args struct {
 		batches []tenantBatch

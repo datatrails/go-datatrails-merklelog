@@ -56,6 +56,7 @@ type VerifiedContext struct {
 	ConsistentRoots []byte
 }
 
+// checkedVerifiedContextOptions checks the options provided satisfy the common requirements of the reader methods
 func checkedVerifiedContextOptions(baseOpts ReaderOptions, opts ...ReaderOption) (ReaderOptions, error) {
 	options := ReaderOptionsCopy(baseOpts)
 	for _, o := range opts {
@@ -114,6 +115,8 @@ func (mr *MassifReader) GetVerifiedContext(
 	return mc.verifyContext(ctx, options)
 }
 
+// VerifyContext verifies an arbitrary context and returns a verified context if this succeeds.
+// This performs the same checks as GetVerifiedContext
 func (mr *MassifReader) VerifyContext(
 	ctx context.Context, mc MassifContext,
 	opts ...ReaderOption,
@@ -125,6 +128,7 @@ func (mr *MassifReader) VerifyContext(
 	return mc.verifyContext(ctx, options)
 }
 
+// VerifyContext verifies the context and returns a verified context if this succeeds.
 func (mc *MassifContext) VerifyContext(
 	ctx context.Context,
 	opts ...ReaderOption,
