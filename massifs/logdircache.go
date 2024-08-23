@@ -160,10 +160,11 @@ func NewLogDirCache(log logger.Logger, opener Opener, opts ...DirCacheOption) (*
 	for _, o := range opts {
 		o(&c.opts)
 	}
-	if c.opts.massifHeight == 0 {
-		return nil, ErrLogMassifHeightNotProvided
-	}
 	return c, nil
+}
+
+func (c *LogDirCache) ReplaceOptions(opts ...DirCacheOption) {
+	c.opts = NewLogDirCacheOptions(ReaderOptions{}, opts...)
 }
 
 func (c *LogDirCache) Options() DirCacheOptions {
@@ -324,7 +325,9 @@ func (c *LogDirCache) ResolveDirectory(tenantIdentityOrLocalPath string) (string
 		return directory, nil
 	}
 
-	directory = tenantReplicaDir(c.opts.replicaDir, tenantIdentityOrLocalPath)
+	// Otherwise, we deal with *both* possibilities
+
+	directory = TenantReplicaDir(c.opts.replicaDir, tenantIdentityOrLocalPath)
 	fi, err := pathInfo(directory)
 	if err != nil {
 		return "", err
@@ -357,7 +360,7 @@ func (d *LogDirCacheEntry) ReadMassif(c DirCache, massifIndex uint64) (*MassifCo
 	var cached *MassifContext
 	// check if massif with particular index was found
 	if fileName, ok = d.MassifPaths[massifIndex]; !ok {
-		return nil, fmt.Errorf("%v: %d", ErrLogFileMassifNotFound, massifIndex)
+		return nil, fmt.Errorf("%w: %d", ErrLogFileMassifNotFound, massifIndex)
 	}
 
 	if cached, ok = d.Massifs[fileName]; ok {
@@ -401,13 +404,13 @@ func (d *LogDirCacheEntry) GetSeal(c DirCache, massifIndex uint64) (*SealedState
 	var cached *SealedState
 	// check if seal with particular index was found
 	if fileName, ok = d.SealPaths[massifIndex]; !ok {
-		return nil, fmt.Errorf("%v: %d", ErrLogFileSealNotFound, massifIndex)
+		return nil, fmt.Errorf("%w: %d", ErrLogFileSealNotFound, massifIndex)
 	}
 
 	if cached, ok = d.Seals[fileName]; ok {
 		return cached, nil
 	}
-	return nil, fmt.Errorf("%v: %d", ErrLogFileSealNotFound, massifIndex)
+	return nil, fmt.Errorf("%w: %d", ErrLogFileSealNotFound, massifIndex)
 }
 
 func (d *LogDirCacheEntry) ReadSeal(c DirCache, fileName string) (*SealedState, error) {
@@ -548,29 +551,29 @@ func (d *LogDirCacheEntry) setSeal(
 	}
 
 	// update the first massif index if we have new one
-	if massifIndex < d.FirstMassifIndex {
+	if massifIndex < d.FirstSealIndex {
 		d.FirstSealIndex = massifIndex
 	}
 	return nil
 }
 
-// tenantReplicaPath normalizes a tenantIdentity to conform to our remotes
+// TenantReplicaPath normalizes a tenantIdentity to conform to our remotes
 // storage path schema.
 //
 // tenantIdentity should be "tenant/UUID", if it's value does not start with
 // "tenant/" then the prefix is forcibly added.
-func tenantReplicaPath(tenantIdentity string) string {
+func TenantReplicaPath(tenantIdentity string) string {
 	// normalize tenant identity
-	if !strings.HasPrefix("tenant/", tenantIdentity) {
+	if !strings.HasPrefix(tenantIdentity, "tenant/") {
 		tenantIdentity = "tenant/" + tenantIdentity
 	}
-	return strings.TrimPrefix(TenantMassifPrefix(tenantIdentity), V1MMRPrefix)
+	return strings.TrimSuffix(strings.TrimPrefix(TenantMassifPrefix(tenantIdentity), V1MMRPrefix+"/"), "/")
 }
 
 // tenantReplicaPath normalizes a tenantIdentity to conform to our remotes
 // storage path schema and converts the path to use local file system path separators
-func tenantReplicaDir(replicaDir, tenantIdentity string) string {
-	tenantPath := tenantReplicaPath(tenantIdentity)
+func TenantReplicaDir(replicaDir, tenantIdentity string) string {
+	tenantPath := TenantReplicaPath(tenantIdentity)
 	directoryParts := strings.Split(tenantPath, "/")
 	if replicaDir != "" {
 		directoryParts = append([]string{replicaDir}, directoryParts...)

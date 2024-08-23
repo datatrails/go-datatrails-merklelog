@@ -50,9 +50,9 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 	tenantId2TamperedLogUpdate := tc.g.NewTenantIdentity()
 	tenantId3InconsistentLogUpdate := tc.g.NewTenantIdentity()
 	tenantId4RemoteInconsistentWithTrustedSeal := tc.g.NewTenantIdentity()
-	tenantId5 := tc.g.NewTenantIdentity()
+	tenantId5TrustedPublicKeyMismatch := tc.g.NewTenantIdentity()
 
-	allTenants := []string{tenantId0, tenantId1SealBehindLog, tenantId2TamperedLogUpdate, tenantId3InconsistentLogUpdate, tenantId4RemoteInconsistentWithTrustedSeal, tenantId5}
+	allTenants := []string{tenantId0, tenantId1SealBehindLog, tenantId2TamperedLogUpdate, tenantId3InconsistentLogUpdate, tenantId4RemoteInconsistentWithTrustedSeal, tenantId5TrustedPublicKeyMismatch}
 
 	massifHeight := uint8(8)
 	tc.CreateLog(tenantId0, massifHeight, 3*(1<<massifHeight)+0)
@@ -60,7 +60,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 	tc.CreateLog(tenantId2TamperedLogUpdate, massifHeight, 3*(1<<massifHeight)+2)
 	tc.CreateLog(tenantId3InconsistentLogUpdate, massifHeight, 3*(1<<massifHeight)+3)
 	tc.CreateLog(tenantId4RemoteInconsistentWithTrustedSeal, massifHeight, 3*(1<<massifHeight)+4)
-	tc.CreateLog(tenantId5, massifHeight, 3*(1<<massifHeight)+5)
+	tc.CreateLog(tenantId5TrustedPublicKeyMismatch, massifHeight, 3*(1<<massifHeight)+5)
 
 	// sizeBeforeLeaves returns the size of the massif before the leaves provded number of leaves were added
 	sizeBeforeLeaves := func(mc *massifs.MassifContext, leavesBefore uint64) uint64 {
@@ -104,25 +104,6 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 			MMRSize: mmrSize, Root: root,
 		})
 	}
-
-	/*
-		findSeal := func(
-			identifier string, massifIndex uint64, mmrSize uint64,
-		) (*cose.CoseSign1Message, massifs.MMRState, error) {
-			for _, tenantId := range allTenants {
-				if !strings.Contains(identifier, tenantId) {
-					continue
-				}
-				mc, err := findMassif(tenantId, massifIndex)
-				if err != nil {
-					return nil, massifs.MMRState{}, err
-				}
-				return seal(mc, mmrSize, tenantId, uint32(massifIndex))
-			}
-			return nil, massifs.MMRState{}, massifs.ErrSealNotFound
-		}*/
-
-	//sg := massifs.NewSignedRootReader(logger.Sugar, tc.azuriteContext.Storer, tc.rootSignerCodec)
 
 	sg := *mocks.NewSealGetter(t)
 	sg.On("GetSignedRoot", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
@@ -289,22 +270,6 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 			}
 			return mc, nil
 		})
-	/*
-		dc.On("ReadSeal", mock.Anything, mock.Anything).Return(
-			func(directory string, massifIndex uint64) (*massifs.SealedState, error) {
-
-				for _, tenantId := range []string{tenantId0, tenantId1, tenantId2} {
-					if !strings.Contains(directory, tenantId) {
-						continue
-					}
-					msg, state, err := sg.GetSignedRoot(context.TODO(), tenantId, uint32(massifIndex))
-					if err != nil {
-						return nil, err
-					}
-					return &massifs.SealedState{Sign1Message: *msg, MMRState: state}, nil
-				}
-				return nil, massifs.ErrSealNotFound
-			})*/
 
 	// To provoke the case where the local, trusted, seal is inconsistent with
 	// the remote seal & log, we play a bit of a trick. We get a seal for a
@@ -350,14 +315,14 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 		{
 			name:     "valid public seal key",
 			callOpts: []massifs.ReaderOption{massifs.WithTrustedSealerPub(&tc.key.PublicKey)},
-			args:     args{tenantIdentity: tenantId5, massifIndex: 0},
+			args:     args{tenantIdentity: tenantId5TrustedPublicKeyMismatch, massifIndex: 0},
 			wantErr:  nil,
 		},
 
 		{
 			name:     "invalid public seal key",
 			callOpts: []massifs.ReaderOption{massifs.WithTrustedSealerPub(&fakeECKey.PublicKey)},
-			args:     args{tenantIdentity: tenantId5, massifIndex: 0},
+			args:     args{tenantIdentity: tenantId5TrustedPublicKeyMismatch, massifIndex: 0},
 			wantErr:  massifs.ErrRemoteSealKeyMatchFailed,
 		},
 

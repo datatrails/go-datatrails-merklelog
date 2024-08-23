@@ -72,18 +72,18 @@ func TenantMassifBlobPath(tenantIdentity string, number uint64) string {
 	)
 }
 
-// TenantRelativeMassifPath returns the blob path with the leading tenant identity and version schema striped.
-func TenantRelativeMassifPath(tenantIdentity string, number uint32) string {
+// ReplicaRelativeMassifPath returns the blob path with the datatrails specific hosting location stripped,
+// But otherwise matches the path schema, including the tenant identity and configuration version
+func ReplicaRelativeMassifPath(tenantIdentity string, number uint32) string {
 	return strings.TrimPrefix(
-		strings.TrimPrefix(
-			V1MMRPrefix, TenantMassifBlobPath(tenantIdentity, uint64(number))), tenantIdentity)
+		TenantMassifBlobPath(tenantIdentity, uint64(number)), V1MMRPrefix+"/")
 }
 
-// TenantRelativeSealPath returns the seal path with the leading tenant identity and version schema striped.
-func TenantRelativeSealPath(tenantIdentity string, number uint32) string {
+// ReplicaRelativeSealPath returns the blob path with the datatrails specific hosting location stripped,
+// But otherwise matches the path schema, including the tenant identity and configuration version
+func ReplicaRelativeSealPath(tenantIdentity string, number uint32) string {
 	return strings.TrimPrefix(
-		strings.TrimPrefix(
-			V1MMRPrefix, TenantMassifSignedRootPath(tenantIdentity, number)), tenantIdentity)
+		TenantMassifSignedRootPath(tenantIdentity, number), V1MMRPrefix+"/")
 }
 
 // TenantMassifSignedRootPath returns the appropriate blob path for the blob

@@ -105,3 +105,45 @@ func TestTenantMassifSignedRootPath(t *testing.T) {
 		})
 	}
 }
+
+func TestTenantRelativeMassifPath(t *testing.T) {
+	type args struct {
+		tenantIdentity string
+		number         uint32
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{args: args{"tenant/1234", 1}, want: "tenant/1234/0/massifs/0000000000000001.log"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ReplicaRelativeMassifPath(tt.args.tenantIdentity, tt.args.number); got != tt.want {
+				t.Errorf("TenantRelativeMassifPath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTenantRelativeSealPath(t *testing.T) {
+	type args struct {
+		tenantIdentity string
+		number         uint32
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{args: args{"tenant/1234", 1}, want: "tenant/1234/0/massifseals/0000000000000001.sth"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ReplicaRelativeSealPath(tt.args.tenantIdentity, tt.args.number); got != tt.want {
+				t.Errorf("TenantRelativeSealPath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

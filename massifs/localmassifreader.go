@@ -4,17 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 
+	"github.com/datatrails/go-datatrails-common/cose"
 	"github.com/datatrails/go-datatrails-common/logger"
 )
 
 var (
-	ErrPathIsNotDir = errors.New("expected the path to be an existing directory")
+	ErrPathIsNotDir    = errors.New("expected the path to be an existing directory")
+	ErrWriteIncomplete = errors.New("a file write succeeded, but the number of bytes written was shorter than the supplied data")
 )
 
 type DirResolver interface {
 	ResolveDirectory(tenantIdentityOrLocalPath string) (string, error)
+}
+type WriteAppendOpener interface {
+	Open(string) (io.WriteCloser, error)
 }
 
 type VerifiedContextReader interface {
@@ -31,7 +37,7 @@ type ReplicaReader interface {
 		opts ...ReaderOption,
 	) (*VerifiedContext, error)
 	ReplaceVerifiedContext(
-		ctx context.Context, vc *VerifiedContext,
+		ctx context.Context, vc *VerifiedContext, writeOpener WriteAppendOpener,
 	) error
 
 	InReplicaMode() bool
@@ -59,7 +65,7 @@ func NewLocalReader(
 
 // InReplicaMode returns true if the reader is in replica mode
 func (r *LocalReader) InReplicaMode() bool {
-	return r.cache.Options().replicaDir == ""
+	return r.cache.Options().replicaDir != ""
 }
 
 // GetReplicaDir returns the replica directory
@@ -129,6 +135,7 @@ func (r *LocalReader) VerifyContext(
 	ctx context.Context, mc MassifContext,
 	opts ...ReaderOption,
 ) (*VerifiedContext, error) {
+
 	options, err := checkedVerifiedContextOptions(r.cache.Options().ReaderOptions, opts...)
 	if err != nil {
 		return nil, err
@@ -136,21 +143,33 @@ func (r *LocalReader) VerifyContext(
 	return mc.verifyContext(ctx, options)
 }
 
-// ReplaceVerifiedContext replaces the verified context with an updated on, it
-// is the callers responsibility to ensure the context was verified.
+// ReplaceVerifiedContext writes the content from the verified remote to the
+// local replica.  is the callers responsibility to ensure the context was
+// verified, and that the writeOpener opens the file in append mode if it
+// already exists.
 func (r *LocalReader) ReplaceVerifiedContext(
-	ctx context.Context, vc *VerifiedContext,
+	ctx context.Context, vc *VerifiedContext, writeOpener WriteAppendOpener,
 ) error {
 
-	logFilename, err := r.ResolveDirectory(TenantRelativeMassifPath(vc.TenantIdentity, vc.Start.MassifIndex))
+	logFilename := r.GetMassifLocalPath(vc.TenantIdentity, vc.Start.MassifIndex)
+	err := writeAll(writeOpener, logFilename, vc.Data)
 	if err != nil {
 		return err
 	}
 
-	sealFilename, err := r.ResolveDirectory(TenantRelativeSealPath(vc.TenantIdentity, vc.Start.MassifIndex))
+	sealFilename := r.GetSealLocalPath(vc.TenantIdentity, vc.Start.MassifIndex)
 	if err != nil {
 		return err
 	}
+	sealBytes, err := vc.Sign1Message.MarshalCBOR()
+	if err != nil {
+		return err
+	}
+	err = writeAll(writeOpener, sealFilename, sealBytes)
+	if err != nil {
+		return err
+	}
+
 
 	err = r.cache.ReplaceMassif(logFilename, &vc.MassifContext)
 	if err != nil {
@@ -201,6 +220,19 @@ func (r *LocalReader) GetSeal(
 	}
 
 	return copyCachedSealOrErr(r.cache.ReadSeal(directory, massifIndex))
+}
+
+// GetSignedRoot satisfies the SealGetter interface.
+// This is the default seal getter for the local reader when GetVerifiedContext is called.
+func (r *LocalReader) GetSignedRoot(
+	ctx context.Context, tenantIdentityOrLocalPath string, massifIndex uint32,
+	opts ...ReaderOption,
+) (*cose.CoseSign1Message, MMRState, error) {
+	sealedState, err := r.GetSeal(ctx, tenantIdentityOrLocalPath, uint64(massifIndex), opts...)
+	if err != nil {
+		return nil, MMRState{}, err
+	}
+	return &sealedState.Sign1Message, sealedState.MMRState, nil
 }
 
 // GetHeadMassif reads the most recent massif in the log identified by the tenant identity
@@ -257,12 +289,12 @@ func (r *LocalReader) GetFirstMassif(
 
 // GetMassifLocalPath returns the local path for the massif identified by the tenant identity and massif index
 func (r *LocalReader) GetMassifLocalPath(tenantIdentity string, massifIndex uint32) string {
-	return filepath.Join(r.GetReplicaDir(), TenantRelativeMassifPath(tenantIdentity, massifIndex))
+	return filepath.Join(r.GetReplicaDir(), ReplicaRelativeMassifPath(tenantIdentity, massifIndex))
 }
 
 // GetSealLocalPath returns the local path for the seal identified by the tenant identity and massif index
 func (r *LocalReader) GetSealLocalPath(tenantIdentity string, massifIndex uint32) string {
-	return filepath.Join(r.GetReplicaDir(), TenantRelativeSealPath(tenantIdentity, massifIndex))
+	return filepath.Join(r.GetReplicaDir(), ReplicaRelativeSealPath(tenantIdentity, massifIndex))
 }
 
 // GetLazyContext is an optimization for remote massif readers
@@ -298,4 +330,23 @@ func copyCachedMassif(cached *MassifContext) MassifContext {
 	mc.peakStackMap = cached.CopyPeakStack()
 	mc.Tags = cached.CopyTags()
 	return mc
+}
+
+func writeAll(wo WriteAppendOpener, filename string, data []byte) error {
+	f, err := wo.Open(filename)
+	if err != nil {
+		return err
+
+	}
+	defer f.Close()
+
+	n, err := f.Write(data)
+	if err != nil {
+		return err
+	}
+
+	if n != len(data) {
+		return fmt.Errorf("%w: %s", ErrWriteIncomplete, filename)
+	}
+	return nil
 }
