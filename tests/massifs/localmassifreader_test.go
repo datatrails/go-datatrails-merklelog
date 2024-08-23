@@ -233,7 +233,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 		func(directory string) (*massifs.LogDirCacheEntry, bool) {
 			return nil, false
 		})
-	dc.On("ResolveDirectory", mock.Anything).Return(
+	dc.On("ResolveMassifDir", mock.Anything).Return(
 		func(directory string) (string, error) {
 			return directory, nil
 		})

@@ -14,6 +14,24 @@ type ReplicaReader struct {
 	mock.Mock
 }
 
+// EnsureReplicaDirs provides a mock function with given fields: tenantIdentity
+func (_m *ReplicaReader) EnsureReplicaDirs(tenantIdentity string) error {
+	ret := _m.Called(tenantIdentity)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureReplicaDirs")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(tenantIdentity)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetHeadVerifiedContext provides a mock function with given fields: ctx, tenantIdentity, opts
 func (_m *ReplicaReader) GetHeadVerifiedContext(ctx context.Context, tenantIdentity string, opts ...massifs.ReaderOption) (*massifs.VerifiedContext, error) {
 	_va := make([]interface{}, len(opts))
@@ -160,17 +178,17 @@ func (_m *ReplicaReader) InReplicaMode() bool {
 	return r0
 }
 
-// ReplaceVerifiedContext provides a mock function with given fields: ctx, vc
-func (_m *ReplicaReader) ReplaceVerifiedContext(ctx context.Context, vc *massifs.VerifiedContext) error {
-	ret := _m.Called(ctx, vc)
+// ReplaceVerifiedContext provides a mock function with given fields: ctx, vc, writeOpener
+func (_m *ReplicaReader) ReplaceVerifiedContext(ctx context.Context, vc *massifs.VerifiedContext, writeOpener massifs.WriteAppendOpener) error {
+	ret := _m.Called(ctx, vc, writeOpener)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ReplaceVerifiedContext")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *massifs.VerifiedContext) error); ok {
-		r0 = rf(ctx, vc)
+	if rf, ok := ret.Get(0).(func(context.Context, *massifs.VerifiedContext, massifs.WriteAppendOpener) error); ok {
+		r0 = rf(ctx, vc, writeOpener)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -178,12 +196,40 @@ func (_m *ReplicaReader) ReplaceVerifiedContext(ctx context.Context, vc *massifs
 	return r0
 }
 
-// ResolveDirectory provides a mock function with given fields: tenantIdentityOrLocalPath
-func (_m *ReplicaReader) ResolveDirectory(tenantIdentityOrLocalPath string) (string, error) {
+// ResolveMassifDir provides a mock function with given fields: tenantIdentityOrLocalPath
+func (_m *ReplicaReader) ResolveMassifDir(tenantIdentityOrLocalPath string) (string, error) {
 	ret := _m.Called(tenantIdentityOrLocalPath)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ResolveDirectory")
+		panic("no return value specified for ResolveMassifDir")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
+		return rf(tenantIdentityOrLocalPath)
+	}
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(tenantIdentityOrLocalPath)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(tenantIdentityOrLocalPath)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ResolveSealDir provides a mock function with given fields: tenantIdentityOrLocalPath
+func (_m *ReplicaReader) ResolveSealDir(tenantIdentityOrLocalPath string) (string, error) {
+	ret := _m.Called(tenantIdentityOrLocalPath)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResolveSealDir")
 	}
 
 	var r0 string

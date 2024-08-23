@@ -14,16 +14,17 @@ import (
 )
 
 var (
-	ErrLogFileNoMagic                = errors.New("the file is not recognized as a massif")
-	ErrLogFileBadHeader              = errors.New("a massif file header was to short or badly formed")
-	ErrLogFileMassifHeightHeader     = errors.New("the massif height in the header did not match the expected height")
-	ErrLogFileDuplicateMassifIndices = errors.New("log files with the same massif index found in a single directory")
-	ErrLogFileMassifNotFound         = errors.New("a log file corresponding to the massif index was not found")
-	ErrLogFileSealNotFound           = errors.New("a log seal corresponding to the massif index was not found")
-	ErrMassifDirListerNotProvided    = errors.New("the reader option providing a massif directory lister was not provided")
-	ErrSealDirListerNotProvided      = errors.New("the reader option providing a massif seal directory lister was not provided")
-	ErrAddSealExists                 = errors.New("attempt to add a sealed stated entry that already exists")
-	ErrLogMassifHeightNotProvided    = errors.New("a consistent massif height must be specified for all files logically part of the same log")
+	ErrLogFileNoMagic                       = errors.New("the file is not recognized as a massif")
+	ErrLogFileBadHeader                     = errors.New("a massif file header was to short or badly formed")
+	ErrLogFileMassifHeightHeader            = errors.New("the massif height in the header did not match the expected height")
+	ErrLogFileDuplicateMassifIndices        = errors.New("log files with the same massif index found in a single directory")
+	ErrLogFileMassifNotFound                = errors.New("a log file corresponding to the massif index was not found")
+	ErrLogFileSealNotFound                  = errors.New("a log seal corresponding to the massif index was not found")
+	ErrMassifDirListerNotProvided           = errors.New("the reader option providing a massif directory lister was not provided")
+	ErrSealDirListerNotProvided             = errors.New("the reader option providing a massif seal directory lister was not provided")
+	ErrAddSealExists                        = errors.New("attempt to add a sealed stated entry that already exists")
+	ErrLogMassifHeightNotProvided           = errors.New("a consistent massif height must be specified for all files logically part of the same log")
+	ErrNeedTenantIdentityOrExistingFilepath = errors.New("a tenant identity or an existing file path must be provided")
 )
 
 type DirLister interface {
@@ -303,22 +304,21 @@ func (c *LogDirCache) ReadSeal(directory string, massifIndex uint64) (*SealedSta
 	return dirEntry.GetSeal(c, massifIndex)
 }
 
-// ResolveDirectory resolves a string which may be either a tenant identity or a local path.
-//
-// If we are regular file or directory mode, this requires that the provided
-// value is a directory or a file.
-//
-// In replica mode, derive the path using the tenantIdentity, and the massif
-// blob path schema, and similarly require an existing file path.
-//
-// Returns
-//   - a directory path
-func (c *LogDirCache) ResolveDirectory(tenantIdentityOrLocalPath string) (string, error) {
+// isTenantIdLike returns true if the the provided string starts with "tenant/" and contains only a single "/"
+func isTenantIdLike(tenantIdentityOrLocalPath string) bool {
+	return strings.HasPrefix(tenantIdentityOrLocalPath, "tenant/") && strings.Count(tenantIdentityOrLocalPath, "/") == 1
+}
+
+// ResolveCacheDir returns the cache directory for an existing local path
+// The local path may be relative to the replicaDir if it is set,
+// The existence of the path 'as is' is prioritized over the synthesized path
+func (c *LogDirCache) ResolveCacheDir(fileOrDirectory string) (string, error) {
+
 	var err error
 	var directory string
 	// If we are regular file or directory mode, require that the provided value is a directory or a file
 	if c.opts.replicaDir == "" {
-		directory, err = dirFromFilepath(tenantIdentityOrLocalPath)
+		directory, err = dirFromFilepath(fileOrDirectory)
 		if err != nil {
 			return "", err
 		}
@@ -326,8 +326,45 @@ func (c *LogDirCache) ResolveDirectory(tenantIdentityOrLocalPath string) (string
 	}
 
 	// Otherwise, we deal with *both* possibilities
+	directory, err = dirFromFilepath(fileOrDirectory)
+	if err == nil {
+		return directory, nil
+	}
+	fileOrDirectory = filepath.Join(c.opts.replicaDir, fileOrDirectory)
+	return dirFromFilepath(fileOrDirectory)
+}
 
-	directory = TenantReplicaDir(c.opts.replicaDir, tenantIdentityOrLocalPath)
+// ResolveMassifDir resolves a string which may be either a tenant identity or a local path.
+//
+// In either mode, if the provided string is a local path, it must exist as a file or a directory
+// In replica mode, the path is synthesized from the tenant identity and the
+// replica directory regardless of whether it currently exists on disc
+//
+// Returns
+//   - a directory path
+func (c *LogDirCache) ResolveMassifDir(tenantIdentityOrLocalPath string) (string, error) {
+	return c.resolveEntryDir(tenantIdentityOrLocalPath, filepath.Dir(ReplicaRelativeMassifPath(tenantIdentityOrLocalPath, 0)))
+}
+
+func (c *LogDirCache) ResolveSealDir(tenantIdentityOrLocalPath string) (string, error) {
+	return c.resolveEntryDir(tenantIdentityOrLocalPath, filepath.Dir(ReplicaRelativeSealPath(tenantIdentityOrLocalPath, 0)))
+}
+
+func (c *LogDirCache) resolveEntryDir(tenantIdentityOrLocalPath, replicaRelativeDir string) (string, error) {
+	var err error
+	var directory string
+
+	directory, err = c.ResolveCacheDir(tenantIdentityOrLocalPath)
+	if err == nil {
+		return directory, nil
+	}
+
+	// If the provided value is not at suitable "tenant identity" like force an error.
+	if !isTenantIdLike(tenantIdentityOrLocalPath) {
+		return "", fmt.Errorf("%w: %s", ErrNeedTenantIdentityOrExistingFilepath, tenantIdentityOrLocalPath)
+	}
+
+	directory = filepath.Join(c.opts.replicaDir, replicaRelativeDir)
 	fi, err := pathInfo(directory)
 	if err != nil {
 		return "", err
@@ -336,6 +373,7 @@ func (c *LogDirCache) ResolveDirectory(tenantIdentityOrLocalPath string) (string
 		return "", fmt.Errorf("%w: %s", ErrPathIsNotDir, directory)
 	}
 	return directory, nil
+
 }
 
 // getDirEntry returns the entry for directory or creates a new one and establishes it in the cache
@@ -557,12 +595,12 @@ func (d *LogDirCacheEntry) setSeal(
 	return nil
 }
 
-// TenantReplicaPath normalizes a tenantIdentity to conform to our remotes
+// TenantMassifReplicaPath normalizes a tenantIdentity to conform to our remotes
 // storage path schema.
 //
 // tenantIdentity should be "tenant/UUID", if it's value does not start with
 // "tenant/" then the prefix is forcibly added.
-func TenantReplicaPath(tenantIdentity string) string {
+func TenantMassifReplicaPath(tenantIdentity string) string {
 	// normalize tenant identity
 	if !strings.HasPrefix(tenantIdentity, "tenant/") {
 		tenantIdentity = "tenant/" + tenantIdentity
@@ -572,8 +610,8 @@ func TenantReplicaPath(tenantIdentity string) string {
 
 // tenantReplicaPath normalizes a tenantIdentity to conform to our remotes
 // storage path schema and converts the path to use local file system path separators
-func TenantReplicaDir(replicaDir, tenantIdentity string) string {
-	tenantPath := TenantReplicaPath(tenantIdentity)
+func TenantMassifReplicaDir(replicaDir, tenantIdentity string) string {
+	tenantPath := TenantMassifReplicaPath(tenantIdentity)
 	directoryParts := strings.Split(tenantPath, "/")
 	if replicaDir != "" {
 		directoryParts = append([]string{replicaDir}, directoryParts...)

@@ -6,7 +6,7 @@ import (
 	"github.com/datatrails/go-datatrails-common/logger"
 )
 
-func TestLogDirCache_ResolveDirectory(t *testing.T) {
+func TestLogDirCache_ResolveMassifDir(t *testing.T) {
 	type fields struct {
 		log     logger.Logger
 		opts    DirCacheOptions
@@ -35,13 +35,13 @@ func TestLogDirCache_ResolveDirectory(t *testing.T) {
 				entries: tt.fields.entries,
 				opener:  tt.fields.opener,
 			}
-			got, err := c.ResolveDirectory(tt.args.tenantIdentityOrLocalPath)
+			got, err := c.ResolveMassifDir(tt.args.tenantIdentityOrLocalPath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("LogDirCache.ResolveDirectory() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("LogDirCache.ResolveMassifDir() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("LogDirCache.ResolveDirectory() = %v, want %v", got, tt.want)
+				t.Errorf("LogDirCache.ResolveMassifDir() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -69,7 +69,7 @@ func TestTenantReplicaDir(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := TenantReplicaDir(tt.args.replicaDir, tt.args.tenantIdentity); got != tt.want {
+			if got := TenantMassifReplicaDir(tt.args.replicaDir, tt.args.tenantIdentity); got != tt.want {
 				t.Errorf("TenantReplicaDir() = %v, want %v", got, tt.want)
 			}
 		})
@@ -90,7 +90,7 @@ func TestTenantReplicaPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := TenantReplicaPath(tt.args.tenantIdentity); got != tt.want {
+			if got := TenantMassifReplicaPath(tt.args.tenantIdentity); got != tt.want {
 				t.Errorf("TenantReplicaPath() = %v, want %v", got, tt.want)
 			}
 		})

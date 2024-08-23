@@ -9,12 +9,40 @@ type DirResolver struct {
 	mock.Mock
 }
 
-// ResolveDirectory provides a mock function with given fields: tenantIdentityOrLocalPath
-func (_m *DirResolver) ResolveDirectory(tenantIdentityOrLocalPath string) (string, error) {
+// ResolveMassifDir provides a mock function with given fields: tenantIdentityOrLocalPath
+func (_m *DirResolver) ResolveMassifDir(tenantIdentityOrLocalPath string) (string, error) {
 	ret := _m.Called(tenantIdentityOrLocalPath)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ResolveDirectory")
+		panic("no return value specified for ResolveMassifDir")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
+		return rf(tenantIdentityOrLocalPath)
+	}
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(tenantIdentityOrLocalPath)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(tenantIdentityOrLocalPath)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ResolveSealDir provides a mock function with given fields: tenantIdentityOrLocalPath
+func (_m *DirResolver) ResolveSealDir(tenantIdentityOrLocalPath string) (string, error) {
+	ret := _m.Called(tenantIdentityOrLocalPath)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResolveSealDir")
 	}
 
 	var r0 string

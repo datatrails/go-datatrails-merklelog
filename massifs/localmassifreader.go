@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 
 	"github.com/datatrails/go-datatrails-common/cose"
@@ -14,10 +15,12 @@ import (
 var (
 	ErrPathIsNotDir    = errors.New("expected the path to be an existing directory")
 	ErrWriteIncomplete = errors.New("a file write succeeded, but the number of bytes written was shorter than the supplied data")
+	ErrFailedToCreateReplicaDir = errors.New("failed to create a directory needed for local replication")
 )
 
 type DirResolver interface {
-	ResolveDirectory(tenantIdentityOrLocalPath string) (string, error)
+	ResolveMassifDir(tenantIdentityOrLocalPath string) (string, error)
+	ResolveSealDir(tenantIdentityOrLocalPath string) (string, error)
 }
 type WriteAppendOpener interface {
 	Open(string) (io.WriteCloser, error)
@@ -42,9 +45,11 @@ type ReplicaReader interface {
 
 	InReplicaMode() bool
 	GetReplicaDir() string
+	EnsureReplicaDirs(tenantIdentity string) error
 	GetMassifLocalPath(tenantIdentity string, massifIndex uint32) string
 	GetSealLocalPath(tenantIdentity string, massifIndex uint32) string
-	ResolveDirectory(tenantIdentityOrLocalPath string) (string, error)
+	ResolveMassifDir(tenantIdentityOrLocalPath string) (string, error)
+	ResolveSealDir(tenantIdentityOrLocalPath string) (string, error)
 }
 
 type LocalReader struct {
@@ -78,14 +83,41 @@ func (r *LocalReader) GetDirEntry(tenantIdentityOrLocalPath string) (*LogDirCach
 	return r.cache.GetEntry(tenantIdentityOrLocalPath)
 }
 
-// ResolveDirectory resolves the tenant identity or local path to a directory
-func (r *LocalReader) ResolveDirectory(tenantIdentityOrLocalPath string) (string, error) {
-	return r.cache.ResolveDirectory(tenantIdentityOrLocalPath)
+// ResolveMassifDir resolves the tenant identity or local path to a directory
+func (r *LocalReader) ResolveMassifDir(tenantIdentityOrLocalPath string) (string, error) {
+	return r.cache.ResolveMassifDir(tenantIdentityOrLocalPath)
+}
+
+// ResolveSealDir resolves the tenant identity or local path to a directory
+func (r *LocalReader) ResolveSealDir(tenantIdentityOrLocalPath string) (string, error) {
+	return r.cache.ResolveSealDir(tenantIdentityOrLocalPath)
 }
 
 // ReadMassifStart reads the massif start from the given log file
 func (r *LocalReader) ReadMassifStart(logfile string) (MassifStart, string, error) {
 	return r.cache.ReadMassifStart(logfile)
+}
+
+// EnsureReplicaDirs ensures the replica directories exist for the given tenant identity
+func (r *LocalReader) EnsureReplicaDirs(tenantIdentity string) error {
+	if !r.InReplicaMode() {
+		return fmt.Errorf("replica dir must be configured on the local reader")
+	}
+
+	massifsDir := filepath.Dir(r.GetMassifLocalPath(tenantIdentity, 0))
+	sealsDir := filepath.Dir(r.GetSealLocalPath(tenantIdentity, 0))
+
+	err := os.MkdirAll(massifsDir, os.FileMode(0755))
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrFailedToCreateReplicaDir, massifsDir)
+
+	}
+	err = os.MkdirAll(sealsDir, os.FileMode(0755))
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrFailedToCreateReplicaDir, sealsDir)
+
+	}
+	return nil
 }
 
 // GetVerifiedContext gets the massif and its seal and then verifies the massif
@@ -170,7 +202,6 @@ func (r *LocalReader) ReplaceVerifiedContext(
 		return err
 	}
 
-
 	err = r.cache.ReplaceMassif(logFilename, &vc.MassifContext)
 	if err != nil {
 		return err
@@ -194,7 +225,7 @@ func (r *LocalReader) GetMassif(
 		return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, massifIndex))
 	}
 
-	directory, err := r.ResolveDirectory(tenantIdentityOrLocalPath)
+	directory, err := r.ResolveMassifDir(tenantIdentityOrLocalPath)
 	if err != nil {
 		return MassifContext{}, err
 	}
@@ -214,7 +245,7 @@ func (r *LocalReader) GetSeal(
 		return copyCachedSealOrErr(dirEntry.ReadSeal(r.cache, tenantIdentityOrLocalPath))
 	}
 
-	directory, err := r.ResolveDirectory(tenantIdentityOrLocalPath)
+	directory, err := r.ResolveSealDir(tenantIdentityOrLocalPath)
 	if err != nil {
 		return SealedState{}, err
 	}
@@ -246,7 +277,7 @@ func (r *LocalReader) GetHeadMassif(
 		return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, uint64(dirEntry.HeadMassifIndex)))
 	}
 
-	directory, err := r.cache.ResolveDirectory(tenantIdentityOrLocalPath)
+	directory, err := r.cache.ResolveMassifDir(tenantIdentityOrLocalPath)
 	if err != nil {
 		return MassifContext{}, err
 	}
@@ -271,7 +302,7 @@ func (r *LocalReader) GetFirstMassif(
 		return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, uint64(dirEntry.FirstMassifIndex)))
 	}
 
-	directory, err := r.cache.ResolveDirectory(tenantIdentityOrLocalPath)
+	directory, err := r.cache.ResolveMassifDir(tenantIdentityOrLocalPath)
 	if err != nil {
 		return MassifContext{}, err
 	}
@@ -287,7 +318,8 @@ func (r *LocalReader) GetFirstMassif(
 	return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, uint64(dirEntry.FirstMassifIndex)))
 }
 
-// GetMassifLocalPath returns the local path for the massif identified by the tenant identity and massif index
+// GetMassifLocalPath returns the local path for the massif identified by the
+// tenant identity and massif index
 func (r *LocalReader) GetMassifLocalPath(tenantIdentity string, massifIndex uint32) string {
 	return filepath.Join(r.GetReplicaDir(), ReplicaRelativeMassifPath(tenantIdentity, massifIndex))
 }
