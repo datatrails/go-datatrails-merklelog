@@ -210,9 +210,12 @@ func (mc *MassifContext) verifyContext(
 		}
 	}
 
+	state.Root = nil // don't want the caller to accidentally save this to disc
+
 	return &VerifiedContext{
 		MassifContext:   *mc,
 		Sign1Message:    *msg,
+		MMRState:        state,
 		ConsistentRoots: rootB,
 	}, nil
 }

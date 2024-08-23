@@ -309,52 +309,17 @@ func isTenantIdLike(tenantIdentityOrLocalPath string) bool {
 	return strings.HasPrefix(tenantIdentityOrLocalPath, "tenant/") && strings.Count(tenantIdentityOrLocalPath, "/") == 1
 }
 
-// ResolveCacheDir returns the cache directory for an existing local path
-// The local path may be relative to the replicaDir if it is set,
-// The existence of the path 'as is' is prioritized over the synthesized path
-func (c *LogDirCache) ResolveCacheDir(fileOrDirectory string) (string, error) {
-
-	var err error
-	var directory string
-	// If we are regular file or directory mode, require that the provided value is a directory or a file
-	if c.opts.replicaDir == "" {
-		directory, err = dirFromFilepath(fileOrDirectory)
-		if err != nil {
-			return "", err
-		}
-		return directory, nil
-	}
-
-	// Otherwise, we deal with *both* possibilities
-	directory, err = dirFromFilepath(fileOrDirectory)
-	if err == nil {
-		return directory, nil
-	}
-	fileOrDirectory = filepath.Join(c.opts.replicaDir, fileOrDirectory)
-	return dirFromFilepath(fileOrDirectory)
-}
-
 // ResolveMassifDir resolves a string which may be either a tenant identity or a local path.
 //
 // In either mode, if the provided string is a local path, it must exist as a file or a directory
-// In replica mode, the path is synthesized from the tenant identity and the
-// replica directory regardless of whether it currently exists on disc
+// If the provided path does not exist on the file system it is expected to be a tenant identity.
+// An initial syntactic check is made to asure this then the path is synthesized from the tenant identity.
+// The resulting path is checked for existence as a directory, and an error is returned if it does not exist.
 //
 // Returns
 //   - a directory path
 func (c *LogDirCache) ResolveMassifDir(tenantIdentityOrLocalPath string) (string, error) {
-	return c.resolveEntryDir(tenantIdentityOrLocalPath, filepath.Dir(ReplicaRelativeMassifPath(tenantIdentityOrLocalPath, 0)))
-}
-
-func (c *LogDirCache) ResolveSealDir(tenantIdentityOrLocalPath string) (string, error) {
-	return c.resolveEntryDir(tenantIdentityOrLocalPath, filepath.Dir(ReplicaRelativeSealPath(tenantIdentityOrLocalPath, 0)))
-}
-
-func (c *LogDirCache) resolveEntryDir(tenantIdentityOrLocalPath, replicaRelativeDir string) (string, error) {
-	var err error
-	var directory string
-
-	directory, err = c.ResolveCacheDir(tenantIdentityOrLocalPath)
+	directory, err := dirFromFilepath(tenantIdentityOrLocalPath)
 	if err == nil {
 		return directory, nil
 	}
@@ -363,6 +328,29 @@ func (c *LogDirCache) resolveEntryDir(tenantIdentityOrLocalPath, replicaRelative
 	if !isTenantIdLike(tenantIdentityOrLocalPath) {
 		return "", fmt.Errorf("%w: %s", ErrNeedTenantIdentityOrExistingFilepath, tenantIdentityOrLocalPath)
 	}
+
+	// it is not a file or directory, so it must be a tenant identity
+	directory = filepath.Dir(ReplicaRelativeMassifPath(tenantIdentityOrLocalPath, 0))
+	return c.resolveReplicaRelativeDir(directory)
+}
+
+func (c *LogDirCache) ResolveSealDir(tenantIdentityOrLocalPath string) (string, error) {
+	directory, err := dirFromFilepath(tenantIdentityOrLocalPath)
+	if err == nil {
+		return directory, nil
+	}
+	// If the provided value is not at suitable "tenant identity" like force an error.
+	if !isTenantIdLike(tenantIdentityOrLocalPath) {
+		return "", fmt.Errorf("%w: %s", ErrNeedTenantIdentityOrExistingFilepath, tenantIdentityOrLocalPath)
+	}
+
+	directory = filepath.Dir(ReplicaRelativeSealPath(tenantIdentityOrLocalPath, 0))
+	return c.resolveReplicaRelativeDir(directory)
+}
+
+func (c *LogDirCache) resolveReplicaRelativeDir(replicaRelativeDir string) (string, error) {
+	var err error
+	var directory string
 
 	directory = filepath.Join(c.opts.replicaDir, replicaRelativeDir)
 	fi, err := pathInfo(directory)
