@@ -25,6 +25,7 @@ var (
 	ErrAddSealExists                        = errors.New("attempt to add a sealed stated entry that already exists")
 	ErrLogMassifHeightNotProvided           = errors.New("a consistent massif height must be specified for all files logically part of the same log")
 	ErrNeedTenantIdentityOrExistingFilepath = errors.New("a tenant identity or an existing file path must be provided")
+	ErrDirModeExclusiveWithReplicaMode      = errors.New("operation on an arbitrary, single, directory is mutualy exclusive with replica mode")
 )
 
 type DirLister interface {
@@ -61,6 +62,12 @@ type DirCacheOptions struct {
 	// readers which operate on a local replica of multiple tenant logs specify the root of the replica using this option
 	// The paths under this location match the path schema used by datatrails for the cloud storage of tenant logs
 	replicaDir string
+
+	// If operating in directory mode, this is the identity of the tenant
+	// expected in the directory. The MassifContext instances are filled in with
+	// this value for this case, as the identity isn't otherwise known.
+	tenantIdentity string
+	tenantDirMode  bool
 }
 
 // NewLogDirCacheOptions creates a new DirCacheOptions object with the provided options
@@ -95,9 +102,19 @@ func WithReaderOption(o ReaderOption) DirCacheOption {
 // WithDirCacheReplicaDir specifies a directory under which a local filesystem
 // replica of one or more tenant logs is maintained. The filesystem structure
 // matches the remote log path structure
+// NOTE: THis option is mutually exclusive with WithDirForTenant
 func WithDirCacheReplicaDir(replicaDir string) DirCacheOption {
 	return func(o *DirCacheOptions) {
 		o.replicaDir = replicaDir
+	}
+}
+
+// WithDirCacheTenant sets the cache to operate in single directory mode.
+func WithDirCacheTenant(tenantIdentity string) DirCacheOption {
+	return func(o *DirCacheOptions) {
+		o.tenantIdentity = tenantIdentity
+		// allow tenantDirMode in the case where the tenant identity is completely unknown
+		o.tenantDirMode = true
 	}
 }
 
@@ -160,6 +177,9 @@ func NewLogDirCache(log logger.Logger, opener Opener, opts ...DirCacheOption) (*
 
 	for _, o := range opts {
 		o(&c.opts)
+	}
+	if c.opts.replicaDir != "" && c.opts.tenantDirMode {
+		return nil, ErrDirModeExclusiveWithReplicaMode
 	}
 	return c, nil
 }
@@ -317,9 +337,9 @@ func isTenantIdLike(tenantIdentityOrLocalPath string) bool {
 // Returns
 //   - a directory path
 func (c *LogDirCache) ResolveMassifDir(tenantIdentityOrLocalPath string) (string, error) {
-	directory, err := dirFromFilepath(tenantIdentityOrLocalPath)
-	if err == nil {
-		return directory, nil
+
+	if c.opts.tenantDirMode {
+		return dirFromFilepath(tenantIdentityOrLocalPath)
 	}
 
 	// If the provided value is not at suitable "tenant identity" like force an error.
@@ -328,21 +348,22 @@ func (c *LogDirCache) ResolveMassifDir(tenantIdentityOrLocalPath string) (string
 	}
 
 	// it is not a file or directory, so it must be a tenant identity
-	directory = filepath.Dir(ReplicaRelativeMassifPath(tenantIdentityOrLocalPath, 0))
+	directory := filepath.Dir(ReplicaRelativeMassifPath(tenantIdentityOrLocalPath, 0))
 	return c.resolveReplicaRelativeDir(directory)
 }
 
 func (c *LogDirCache) ResolveSealDir(tenantIdentityOrLocalPath string) (string, error) {
-	directory, err := dirFromFilepath(tenantIdentityOrLocalPath)
-	if err == nil {
-		return directory, nil
+
+	if c.opts.tenantDirMode {
+		return dirFromFilepath(tenantIdentityOrLocalPath)
 	}
+
 	// If the provided value is not at suitable "tenant identity" like force an error.
 	if !isTenantIdLike(tenantIdentityOrLocalPath) {
 		return "", fmt.Errorf("%w: %s", ErrNeedTenantIdentityOrExistingFilepath, tenantIdentityOrLocalPath)
 	}
 
-	directory = filepath.Dir(ReplicaRelativeSealPath(tenantIdentityOrLocalPath, 0))
+	directory := filepath.Dir(ReplicaRelativeSealPath(tenantIdentityOrLocalPath, 0))
 	return c.resolveReplicaRelativeDir(directory)
 }
 

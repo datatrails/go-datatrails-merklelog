@@ -284,7 +284,7 @@ func (r *LocalReader) GetSeal(
 	// short circuit direct match, regardless of mode, to support explicit paths
 	dirEntry, ok := r.cache.GetEntry(directory)
 	if ok {
-		return copyCachedSealOrErr(dirEntry.ReadSeal(r.cache, tenantIdentityOrLocalPath))
+		return copyCachedSealOrErr(dirEntry.GetSeal(r.cache, massifIndex))
 	}
 
 	return copyCachedSealOrErr(r.cache.ReadSeal(directory, massifIndex))
