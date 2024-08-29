@@ -1,5 +1,3 @@
-//go:build integration && azurite
-
 package massifs
 
 import (
@@ -15,4 +13,11 @@ func TestGenerateECKey(t *testing.T, curve elliptic.Curve) ecdsa.PrivateKey {
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	require.NoError(t, err)
 	return *privateKey
+}
+
+func TestNewRootSigner(t *testing.T, issuer string) RootSigner {
+	cborCodec, err := NewRootSignerCodec()
+	require.NoError(t, err)
+	rs := NewRootSigner(issuer, cborCodec)
+	return rs
 }

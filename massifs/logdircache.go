@@ -250,8 +250,6 @@ func (c *LogDirCache) FindSealFiles(directory string) error {
 		return err
 	}
 
-	// for each entry we read the header (first 32 bytes)
-	// and do rough checks if the header looks like it's from a valid log
 	for _, filepath := range entries {
 
 		_, err := dirEntry.ReadSeal(c, filepath)

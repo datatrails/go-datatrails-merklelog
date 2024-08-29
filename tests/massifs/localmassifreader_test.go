@@ -1,25 +1,21 @@
 //go:build integration && azurite
 
+// this has to be separate from the other tests because it imports the mocks package
+
 package massifs
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/sha256"
-	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/datatrails/go-datatrails-common/azkeys"
-	"github.com/datatrails/go-datatrails-common/cbor"
 	"github.com/datatrails/go-datatrails-common/cose"
 	"github.com/datatrails/go-datatrails-common/logger"
 	"github.com/datatrails/go-datatrails-merklelog/massifs"
 	"github.com/datatrails/go-datatrails-merklelog/massifs/mocks"
 	"github.com/datatrails/go-datatrails-merklelog/mmr"
-	"github.com/datatrails/go-datatrails-merklelog/mmrtesting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -42,25 +38,30 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 	logger.New("TestLocalMassifReaderGetVerifiedContext")
 	defer logger.OnExit()
 
-	tc := newLocalMassifReaderTestContext(
+	tc := massifs.NewLocalMassifReaderTestContext(
 		t, logger.Sugar, "TestLocalMassifReaderGetVerifiedContext")
 
-	tenantId0 := tc.g.NewTenantIdentity()
-	tenantId1SealBehindLog := tc.g.NewTenantIdentity()
-	tenantId2TamperedLogUpdate := tc.g.NewTenantIdentity()
-	tenantId3InconsistentLogUpdate := tc.g.NewTenantIdentity()
-	tenantId4RemoteInconsistentWithTrustedSeal := tc.g.NewTenantIdentity()
-	tenantId5TrustedPublicKeyMismatch := tc.g.NewTenantIdentity()
+	tenantId0 := tc.G.NewTenantIdentity()
+	tenantId1SealBehindLog := tc.G.NewTenantIdentity()
+	tenantId2TamperedLogUpdate := tc.G.NewTenantIdentity()
+	tenantId3InconsistentLogUpdate := tc.G.NewTenantIdentity()
+	tenantId4RemoteInconsistentWithTrustedSeal := tc.G.NewTenantIdentity()
+	tenantId5TrustedPublicKeyMismatch := tc.G.NewTenantIdentity()
 
 	allTenants := []string{tenantId0, tenantId1SealBehindLog, tenantId2TamperedLogUpdate, tenantId3InconsistentLogUpdate, tenantId4RemoteInconsistentWithTrustedSeal, tenantId5TrustedPublicKeyMismatch}
 
 	massifHeight := uint8(8)
-	tc.CreateLog(tenantId0, massifHeight, 3*(1<<massifHeight)+0)
-	tc.CreateLog(tenantId1SealBehindLog, massifHeight, 3*(1<<massifHeight)+1)
-	tc.CreateLog(tenantId2TamperedLogUpdate, massifHeight, 3*(1<<massifHeight)+2)
-	tc.CreateLog(tenantId3InconsistentLogUpdate, massifHeight, 3*(1<<massifHeight)+3)
-	tc.CreateLog(tenantId4RemoteInconsistentWithTrustedSeal, massifHeight, 3*(1<<massifHeight)+4)
-	tc.CreateLog(tenantId5TrustedPublicKeyMismatch, massifHeight, 3*(1<<massifHeight)+5)
+	tc.CreateLog(tenantId0, massifHeight, 3)
+	tc.CreateLog(tenantId1SealBehindLog, massifHeight, 3)
+	tc.AddLeavesToLog(tenantId1SealBehindLog, massifHeight, 1)
+	tc.CreateLog(tenantId2TamperedLogUpdate, massifHeight, 3)
+	tc.AddLeavesToLog(tenantId2TamperedLogUpdate, massifHeight, 2)
+	tc.CreateLog(tenantId3InconsistentLogUpdate, massifHeight, 3)
+	tc.AddLeavesToLog(tenantId3InconsistentLogUpdate, massifHeight, 3)
+	tc.CreateLog(tenantId4RemoteInconsistentWithTrustedSeal, massifHeight, 3)
+	tc.AddLeavesToLog(tenantId4RemoteInconsistentWithTrustedSeal, massifHeight, 4)
+	tc.CreateLog(tenantId5TrustedPublicKeyMismatch, massifHeight, 3)
+	tc.AddLeavesToLog(tenantId5TrustedPublicKeyMismatch, massifHeight, 5)
 
 	// sizeBeforeLeaves returns the size of the massif before the leaves provded number of leaves were added
 	sizeBeforeLeaves := func(mc *massifs.MassifContext, leavesBefore uint64) uint64 {
@@ -76,7 +77,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 			if !strings.Contains(identifier, tenantId) {
 				continue
 			}
-			mc, err := tc.azuriteReader.GetMassif(context.TODO(), tenantId, massifIndex)
+			mc, err := tc.AzuriteReader.GetMassif(context.TODO(), tenantId, massifIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -100,9 +101,13 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 		if err != nil {
 			return nil, massifs.MMRState{}, err
 		}
-		return tc.SignedState(tenantIdentity, uint64(massifIndex), massifs.MMRState{
+		signed, state, err := tc.SignedState(tenantIdentity, uint64(massifIndex), massifs.MMRState{
 			MMRSize: mmrSize, Root: root,
 		})
+		// put the root back, because the benefit of the "last good seal"
+		// consistency check does not require access to the log data.
+		state.Root = root
+		return signed, state, err
 	}
 
 	sg := *mocks.NewSealGetter(t)
@@ -226,7 +231,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 			return massifs.NewLogDirCacheOptions(
 				massifs.ReaderOptions{},
 				massifs.WithReaderOption(massifs.WithSealGetter(&sg)),
-				massifs.WithReaderOption(massifs.WithCBORCodec(tc.rootSignerCodec)),
+				massifs.WithReaderOption(massifs.WithCBORCodec(tc.RootSignerCodec)),
 			)
 		})
 	dc.On("GetEntry", mock.Anything).Return(
@@ -292,7 +297,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 	_, fakeGoodState, err := seal(mc, mmrSizeOld, tenantId4RemoteInconsistentWithTrustedSeal, 0)
 	require.NoError(t, err)
 
-	fakeECKey := mustGenerateECKey(t, elliptic.P256())
+	fakeECKey := massifs.TestGenerateECKey(t, elliptic.P256())
 
 	type logStates struct {
 		mmrSize uint64
@@ -310,11 +315,17 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 		wantErr       error
 		wantErrPrefix string
 	}{
+		{
+			name:     "local seal inconsistent with remote log",
+			callOpts: []massifs.ReaderOption{massifs.WithTrustedBaseState(fakeGoodState)}, args: args{tenantIdentity: tenantId4RemoteInconsistentWithTrustedSeal, massifIndex: 0},
+			wantErr: massifs.ErrInconsistentState,
+		},
+
 		// provide an invalid public signing key, this simulates a remote log being signed by a different key than the verifier expects
 		// {name: "invalid public seal key", args: args{tenantIdentity: tenantId3InconsistentLogUpdate, massifIndex: 0}, wantErr: massifs.ErrRemoteSealKeyMatchFailed},
 		{
 			name:     "valid public seal key",
-			callOpts: []massifs.ReaderOption{massifs.WithTrustedSealerPub(&tc.key.PublicKey)},
+			callOpts: []massifs.ReaderOption{massifs.WithTrustedSealerPub(&tc.Key.PublicKey)},
 			args:     args{tenantIdentity: tenantId5TrustedPublicKeyMismatch, massifIndex: 0},
 			wantErr:  nil,
 		},
@@ -326,11 +337,6 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 			wantErr:  massifs.ErrRemoteSealKeyMatchFailed,
 		},
 
-		{
-			name:     "local seal inconsistent with remote log",
-			callOpts: []massifs.ReaderOption{massifs.WithTrustedBaseState(fakeGoodState)}, args: args{tenantIdentity: tenantId4RemoteInconsistentWithTrustedSeal, massifIndex: 0},
-			wantErr: massifs.ErrInconsistentState,
-		},
 		// see the GetSignedRoot mock above for the rational behind tampering only a peak
 		{name: "tamper after seal", args: args{tenantIdentity: tenantId3InconsistentLogUpdate, massifIndex: 0}, wantErr: massifs.ErrInconsistentState},
 		{name: "seal peak tamper", args: args{tenantIdentity: tenantId2TamperedLogUpdate, massifIndex: 0}, wantErr: gocose.ErrVerification},
@@ -366,149 +372,4 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 		)
 	}
 
-}
-
-type testLocalMassifReaderContext struct {
-	testSignerContext
-	azuriteContext   mmrtesting.TestContext
-	mmrtestingConfig mmrtesting.TestConfig
-	committerConfig  massifs.TestCommitterConfig
-
-	g mmrtesting.TestGenerator
-	// We use a regular massif reader attached to azurite to test the local massif reader.
-	azuriteReader massifs.MassifReader
-}
-
-func (c *testLocalMassifReaderContext) CreateLog(tenantIdentity string, massifHeight uint8, mmrSize uint64) {
-
-	// clear out any previous log
-	c.azuriteContext.DeleteBlobsByPrefix(massifs.TenantMassifPrefix(tenantIdentity))
-
-	committer, err := massifs.NewTestMinimalCommitter(massifs.TestCommitterConfig{
-		CommitmentEpoch: 1,
-		MassifHeight:    massifHeight,
-	}, c.azuriteContext, c.g, massifs.MMRTestingGenerateNumberedLeaf)
-	require.NoError(c.azuriteContext.T, err)
-
-	massifSize := mmr.HeightSize(uint64(massifHeight)) + 1
-	massifCount := mmrSize / massifSize
-	if massifCount == 0 {
-		c.azuriteContext.T.FailNow()
-	}
-	lastSize := mmrSize - massifCount*massifSize
-
-	base := uint64(0)
-	for i := 0; i < int(massifCount)-1; i++ {
-		err := committer.AddLeaves(context.TODO(), tenantIdentity, base, massifSize)
-		require.NoError(c.azuriteContext.T, err)
-	}
-	if lastSize > 0 {
-		err := committer.AddLeaves(context.TODO(), tenantIdentity, base, massifSize)
-		require.NoError(c.azuriteContext.T, err)
-	}
-}
-
-func newLocalMassifReaderTestContext(
-	t *testing.T, log logger.Logger, testLabelPrefix string) testLocalMassifReaderContext {
-	cfg := mmrtesting.TestConfig{
-		StartTimeMS: (1698342521) * 1000, EventRate: 500,
-		TestLabelPrefix: testLabelPrefix,
-		TenantIdentity:  "",
-		Container:       strings.ReplaceAll(strings.ToLower(testLabelPrefix), "_", ""),
-	}
-
-	tc := mmrtesting.NewTestContext(t, cfg)
-
-	g := mmrtesting.NewTestGenerator(
-		t, cfg.StartTimeMS/1000,
-		mmrtesting.TestGeneratorConfig{
-			StartTimeMS:     cfg.StartTimeMS,
-			EventRate:       cfg.EventRate,
-			TenantIdentity:  cfg.TenantIdentity,
-			TestLabelPrefix: cfg.TestLabelPrefix,
-		},
-		massifs.MMRTestingGenerateNumberedLeaf,
-	)
-
-	signer := newTestSignerContext(t, testLabelPrefix)
-	return testLocalMassifReaderContext{
-		testSignerContext: *signer,
-		azuriteContext:    tc,
-		mmrtestingConfig:  cfg,
-		g:                 g,
-		azuriteReader:     massifs.NewMassifReader(log, tc.Storer),
-	}
-}
-
-func mustGenerateECKey(t *testing.T, curve elliptic.Curve) ecdsa.PrivateKey {
-	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-	require.NoError(t, err)
-	return *privateKey
-}
-
-func mustNewRootSigner(t *testing.T, issuer string) massifs.RootSigner {
-	cborCodec, err := massifs.NewRootSignerCodec()
-	require.NoError(t, err)
-	return massifs.NewRootSigner(issuer, cborCodec)
-}
-
-func signState(
-	rootSigner massifs.RootSigner,
-	coseSigner azkeys.IdentifiableCoseSigner, subject string, state massifs.MMRState) ([]byte, error) {
-
-	publicKey, err := coseSigner.PublicKey()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get public key for signing key %w", err)
-	}
-
-	keyIdentifier := coseSigner.KeyIdentifier()
-	data, err := rootSigner.Sign1(coseSigner, keyIdentifier, publicKey, subject, state, nil)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-type testSignerContext struct {
-	key             ecdsa.PrivateKey
-	rootSigner      massifs.RootSigner
-	coseSigner      *azkeys.TestCoseSigner
-	rootSignerCodec cbor.CBORCodec
-}
-
-func newTestSignerContext(t *testing.T, issuer string) *testSignerContext {
-	var err error
-
-	key := mustGenerateECKey(t, elliptic.P256())
-	s := &testSignerContext{
-		key:        key,
-		rootSigner: mustNewRootSigner(t, issuer),
-		coseSigner: azkeys.NewTestCoseSigner(t, key),
-	}
-	s.rootSignerCodec, err = massifs.NewRootSignerCodec()
-	assert.NoError(t, err)
-
-	return s
-}
-
-func (s *testSignerContext) SignedState(
-	tenantIdentity string, massifIndex uint64, state massifs.MMRState,
-) (*cose.CoseSign1Message, massifs.MMRState, error) {
-	subject := massifs.TenantMassifBlobPath(tenantIdentity, massifIndex)
-	data, err := signState(s.rootSigner, s.coseSigner, subject, state)
-	if err != nil {
-		return nil, massifs.MMRState{}, err
-	}
-	return massifs.DecodeSignedRoot(s.rootSignerCodec, data)
-}
-
-func (s *testSignerContext) SealedState(tenantIdentity string, massifIndex uint64, state massifs.MMRState) (*massifs.SealedState, error) {
-	signed, state, err := s.SignedState(tenantIdentity, massifIndex, state)
-	if err != nil {
-		return nil, err
-	}
-	return &massifs.SealedState{
-		Sign1Message: *signed,
-		MMRState:     state,
-	}, nil
 }

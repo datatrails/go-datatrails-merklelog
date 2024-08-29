@@ -29,6 +29,8 @@ var (
 	ErrConsistencyProofCheck      = errors.New("verification error while checking a consistency proof")
 	ErrInconsistentState          = errors.New("verification failed for a consistency proof")
 	ErrRemoteSealKeyMatchFailed   = errors.New("the provided public key did not match the remote sealing key")
+	ErrTenantIdUnknown            = errors.New("the method requires that the tenant ientity is known on the context")
+	ErrTenantIdInconsistent       = errors.New("the tenant identity on the context does not match the tenant identity provided")
 )
 
 type VerifiedContext struct {
@@ -126,6 +128,7 @@ func (mr *MassifReader) VerifyContext(
 	if err != nil {
 		return nil, err
 	}
+
 	return mc.verifyContext(ctx, options)
 }
 
@@ -154,12 +157,14 @@ func (mc *MassifContext) verifyContext(
 
 	msg, state, err := options.sealGetter.GetSignedRoot(ctx, mc.TenantIdentity, mc.Start.MassifIndex)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"%w: failed to get seal for massif %d for tenant %s: %v",
+			ErrSealNotFound, mc.Start.MassifIndex, mc.TenantIdentity, WrapBlobNotFound(err))
 	}
 
 	state.Root, err = mmr.GetRoot(state.MMRSize, mc, sha256.New())
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to get seal for massif 0 for tenant %s: %v", ErrSealNotFound, mc.TenantIdentity, err)
+		return nil, fmt.Errorf("%w: failed to get root from massif %d for tenant %s: %v", ErrSealNotFound, mc.Start.MassifIndex, mc.TenantIdentity, err)
 	}
 
 	// NOTICE: The verification uses the public key that is provided on the
@@ -203,14 +208,15 @@ func (mc *MassifContext) verifyContext(
 		if err != nil {
 			return nil, err
 		}
-		if !bytes.Equal(rootB, rootB2) {
+		// rootB above will be nil if the new state is the same as the trusted
+		// state, in which case there is no value in getting the root in order
+		// to do the compare.
+		if rootB != nil && !bytes.Equal(rootB, rootB2) {
 			return nil, fmt.Errorf(
 				"%w: the root produced for the trusted base state doesn't match the root produced for the seal state fetched from the log",
 				ErrInconsistentState)
 		}
 	}
-
-	state.Root = nil // don't want the caller to accidentally save this to disc
 
 	return &VerifiedContext{
 		MassifContext:   *mc,

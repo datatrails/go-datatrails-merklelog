@@ -23,6 +23,7 @@ var (
 	ErrAncestorStackInvalid     = errors.New("the ancestor stack is invalid due to bad header information")
 	ErrMissingPrevBlobLastID    = errors.New("expected snowflake id carry from previous blob not available")
 	ErrIndexNotInMassif         = errors.New("mmr index not in the massif")
+	ErrStateRootMissing         = errors.New("the root field of a state struct was nil when it should have been provided")
 )
 
 // MassifContext enables appending to the log
@@ -431,6 +432,10 @@ func (mc *MassifContext) AddHashedLeaf(
 //   - the latest root on success
 //   - an error otherwise (the returned root is nil)
 func (mc *MassifContext) CheckConsistency(baseState MMRState) ([]byte, error) {
+
+	if baseState.Root == nil {
+		return nil, ErrStateRootMissing
+	}
 
 	mmrSizeCurrent := mc.RangeCount()
 

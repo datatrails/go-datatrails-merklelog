@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	ErrPathIsNotDir    = errors.New("expected the path to be an existing directory")
-	ErrWriteIncomplete = errors.New("a file write succeeded, but the number of bytes written was shorter than the supplied data")
+	ErrPathIsNotDir             = errors.New("expected the path to be an existing directory")
+	ErrWriteIncomplete          = errors.New("a file write succeeded, but the number of bytes written was shorter than the supplied data")
 	ErrFailedToCreateReplicaDir = errors.New("failed to create a directory needed for local replication")
 )
 
@@ -207,10 +207,30 @@ func (r *LocalReader) ReplaceVerifiedContext(
 		return err
 	}
 
+	// Note: ensure that the root is *never* written to disc or available in the
+	// cached copy of the seal, so that it always has to be recomputed.
+	state := vc.MMRState
+	state.Root = nil
+
 	return r.cache.ReplaceSeal(sealFilename, vc.Start.MassifIndex, &SealedState{
 		Sign1Message: vc.Sign1Message,
-		MMRState:     vc.MMRState,
+		MMRState:     state,
 	})
+}
+
+// reconcileCachedContextTenantIdentity ensures that the tenant identity is set on the context
+// Of, if already set, that it matches the callers expectation. This is
+// necessary to deal with the fact that the tenant identity cant be inferred
+// from the storage path in all cases.
+func reconcileCachedContextTenantIdentity(mc *MassifContext, tenantIdentityOrLocalPath string) error {
+	if mc.TenantIdentity == "" {
+		mc.TenantIdentity = tenantIdentityOrLocalPath
+		return nil
+	}
+	if mc.TenantIdentity != tenantIdentityOrLocalPath {
+		return ErrTenantIdInconsistent
+	}
+	return nil
 }
 
 // GetMassif reads the massif identified by the tenant identity and massif index
@@ -219,18 +239,35 @@ func (r *LocalReader) GetMassif(
 	opts ...ReaderOption,
 ) (MassifContext, error) {
 
-	// short circuit direct match, regardless of mode, to support explicit paths
-	dirEntry, ok := r.cache.GetEntry(tenantIdentityOrLocalPath)
-	if ok {
-		return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, massifIndex))
-	}
-
 	directory, err := r.ResolveMassifDir(tenantIdentityOrLocalPath)
 	if err != nil {
 		return MassifContext{}, err
 	}
 
-	return copyCachedMassifOrErr(r.cache.ReadMassif(directory, massifIndex))
+	var mc *MassifContext
+	// short circuit direct match, regardless of mode, to support explicit paths
+	dirEntry, ok := r.cache.GetEntry(directory)
+	if ok {
+		if mc, err = dirEntry.ReadMassif(r.cache, massifIndex); err != nil {
+			return MassifContext{}, err
+		}
+		// support situations where the context tenant can't be infered from the storage path
+		if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
+			return MassifContext{}, err
+		}
+
+		return copyCachedMassif(mc), nil
+	}
+
+	if mc, err = r.cache.ReadMassif(directory, massifIndex); err != nil {
+		return MassifContext{}, err
+	}
+	// support situations where the context tenant can't be infered from the storage path
+	if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
+		return MassifContext{}, err
+	}
+
+	return copyCachedMassif(mc), nil
 }
 
 // GetSeal reads the seal identified by the tenant identity and massif index
@@ -239,15 +276,15 @@ func (r *LocalReader) GetSeal(
 	opts ...ReaderOption,
 ) (SealedState, error) {
 
-	// short circuit direct match, regardless of mode, to support explicit paths
-	dirEntry, ok := r.cache.GetEntry(tenantIdentityOrLocalPath)
-	if ok {
-		return copyCachedSealOrErr(dirEntry.ReadSeal(r.cache, tenantIdentityOrLocalPath))
-	}
-
 	directory, err := r.ResolveSealDir(tenantIdentityOrLocalPath)
 	if err != nil {
 		return SealedState{}, err
+	}
+
+	// short circuit direct match, regardless of mode, to support explicit paths
+	dirEntry, ok := r.cache.GetEntry(directory)
+	if ok {
+		return copyCachedSealOrErr(dirEntry.ReadSeal(r.cache, tenantIdentityOrLocalPath))
 	}
 
 	return copyCachedSealOrErr(r.cache.ReadSeal(directory, massifIndex))
@@ -272,15 +309,29 @@ func (r *LocalReader) GetHeadMassif(
 	opts ...ReaderOption,
 ) (MassifContext, error) {
 
-	dirEntry, ok := r.cache.GetEntry(tenantIdentityOrLocalPath)
-	if ok {
-		return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, uint64(dirEntry.HeadMassifIndex)))
-	}
+	var err error
 
 	directory, err := r.cache.ResolveMassifDir(tenantIdentityOrLocalPath)
 	if err != nil {
 		return MassifContext{}, err
 	}
+
+	dirEntry, ok := r.cache.GetEntry(directory)
+
+	var mc *MassifContext
+	if ok {
+		if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.HeadMassifIndex)); err != nil {
+			return MassifContext{}, err
+		}
+
+		// support situations where the context tenant can't be infered from the storage path
+		if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
+			return MassifContext{}, err
+		}
+
+		return copyCachedMassif(mc), nil
+	}
+
 	err = r.cache.FindMassifFiles(directory)
 	if err != nil {
 		return MassifContext{}, err
@@ -290,22 +341,45 @@ func (r *LocalReader) GetHeadMassif(
 		// It's a bug in FindMassifFiles if this case actually happens in practice.
 		return MassifContext{}, fmt.Errorf("failed to prime directory: %s", directory)
 	}
-	return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, uint64(dirEntry.HeadMassifIndex)))
+	if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.HeadMassifIndex)); err != nil {
+		return MassifContext{}, err
+	}
+	// support situations where the context tenant can't be infered from the storage path
+	if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
+		return MassifContext{}, err
+	}
+
+	return copyCachedMassif(mc), nil
 }
 
 func (r *LocalReader) GetFirstMassif(
 	ctx context.Context, tenantIdentityOrLocalPath string,
 	opts ...ReaderOption,
 ) (MassifContext, error) {
-	dirEntry, ok := r.cache.GetEntry(tenantIdentityOrLocalPath)
-	if ok {
-		return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, uint64(dirEntry.FirstMassifIndex)))
-	}
+
+	var err error
 
 	directory, err := r.cache.ResolveMassifDir(tenantIdentityOrLocalPath)
 	if err != nil {
 		return MassifContext{}, err
 	}
+
+	var mc *MassifContext
+
+	dirEntry, ok := r.cache.GetEntry(directory)
+	if ok {
+
+		if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.FirstMassifIndex)); err != nil {
+			return MassifContext{}, err
+		}
+		// support situations where the context tenant can't be infered from the storage path
+		if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
+			return MassifContext{}, err
+		}
+
+		return copyCachedMassif(mc), nil
+	}
+
 	err = r.cache.FindMassifFiles(directory)
 	if err != nil {
 		return MassifContext{}, err
@@ -315,7 +389,16 @@ func (r *LocalReader) GetFirstMassif(
 		// It's a bug in FindMassifFiles if this case actually happens in practice.
 		return MassifContext{}, fmt.Errorf("failed to prime directory: %s", directory)
 	}
-	return copyCachedMassifOrErr(dirEntry.ReadMassif(r.cache, uint64(dirEntry.FirstMassifIndex)))
+	if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.FirstMassifIndex)); err != nil {
+		return MassifContext{}, err
+	}
+
+	// support situations where the context tenant can't be infered from the storage path
+	if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
+		return MassifContext{}, err
+	}
+
+	return copyCachedMassif(mc), nil
 }
 
 // GetMassifLocalPath returns the local path for the massif identified by the
@@ -346,15 +429,6 @@ func copyCachedSealOrErr(cached *SealedState, err error) (SealedState, error) {
 		return SealedState{}, err
 	}
 	return *cached, nil
-}
-
-// copyCachedMassifOrErr deals with errs from ReadMassif and returns a safe copy
-// this exists to simplify the return logic flow in many methods
-func copyCachedMassifOrErr(cached *MassifContext, err error) (MassifContext, error) {
-	if err != nil {
-		return MassifContext{}, err
-	}
-	return copyCachedMassif(cached), nil
 }
 
 func copyCachedMassif(cached *MassifContext) MassifContext {

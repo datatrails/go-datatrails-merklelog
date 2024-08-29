@@ -1,9 +1,7 @@
 package massifs
 
 import (
-	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/rand"
 	"testing"
 
 	"github.com/datatrails/go-datatrails-common/azkeys"
@@ -12,19 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func mustNewRootSigner(t *testing.T, issuer string) RootSigner {
-	cborCodec, err := NewRootSignerCodec()
-	require.NoError(t, err)
-	rs := NewRootSigner(issuer, cborCodec)
-	return rs
-}
-
-func mustGenerateECKey(t *testing.T, curve elliptic.Curve) ecdsa.PrivateKey {
-	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-	require.NoError(t, err)
-	return *privateKey
-}
 
 func TestRootSigner_Sign1(t *testing.T) {
 
@@ -67,8 +52,8 @@ func TestRootSigner_Sign1(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			key := mustGenerateECKey(t, elliptic.P256())
-			rs := mustNewRootSigner(t, tt.fields.issuer)
+			key := TestGenerateECKey(t, elliptic.P256())
+			rs := TestNewRootSigner(t, tt.fields.issuer)
 
 			coseSigner := azkeys.NewTestCoseSigner(t, key)
 			pubKey, err := coseSigner.PublicKey()
