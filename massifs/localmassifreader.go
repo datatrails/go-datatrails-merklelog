@@ -284,10 +284,19 @@ func (r *LocalReader) GetSeal(
 	// short circuit direct match, regardless of mode, to support explicit paths
 	dirEntry, ok := r.cache.GetEntry(directory)
 	if ok {
-		return copyCachedSealOrErr(dirEntry.GetSeal(r.cache, massifIndex))
+		sstate, err := dirEntry.GetSeal(r.cache, massifIndex)
+		if err != nil {
+			return SealedState{}, err
+		}
+		return *sstate, nil
 	}
 
-	return copyCachedSealOrErr(r.cache.ReadSeal(directory, massifIndex))
+	sstate, err := r.cache.ReadSeal(directory, massifIndex)
+		if err != nil {
+			return SealedState{}, err
+		}
+		return *sstate, nil
+
 }
 
 // GetSignedRoot satisfies the SealGetter interface.
@@ -420,15 +429,6 @@ func (r *LocalReader) GetLazyContext(
 ) (LogBlobContext, uint64, error) {
 
 	return LogBlobContext{}, 0, fmt.Errorf("not implemented for local storage")
-}
-
-// copyCachedSealOrErr deals with errs from ReadSeal and returns a safe copy
-// this exists to simplify the return logic flow in many methods
-func copyCachedSealOrErr(cached *SealedState, err error) (SealedState, error) {
-	if err != nil {
-		return SealedState{}, err
-	}
-	return *cached, nil
 }
 
 func copyCachedMassif(cached *MassifContext) MassifContext {

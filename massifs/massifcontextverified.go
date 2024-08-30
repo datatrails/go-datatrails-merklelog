@@ -189,7 +189,9 @@ func (mc *MassifContext) verifyContext(
 		*options.codec, pubKeyProvider, msg, state, nil,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"%w: failed to verify seal for massif %d for tenant %s: %v",
+			ErrSealVerifyFailed, mc.Start.MassifIndex, mc.TenantIdentity, err)
 	}
 
 	var rootB []byte
