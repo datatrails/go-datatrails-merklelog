@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/datatrails/go-datatrails-merklelog/mmr v0.0.2
-	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.0.1
+	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.1.0
 )
 
 require (
