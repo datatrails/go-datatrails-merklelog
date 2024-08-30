@@ -328,7 +328,9 @@ func (r *LocalReader) GetFirstMassif(
 	var mc *MassifContext
 
 	dirEntry, err := r.resolveMassifDirEntry(tenantIdentityOrLocalPath)
-
+	if err != nil {
+		return MassifContext{}, err
+	}
 	if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.GetInfo().FirstMassifIndex)); err != nil {
 		return MassifContext{}, err
 	}

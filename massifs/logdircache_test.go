@@ -20,14 +20,16 @@ func TestLogDirCache_ResolveMassifDir(t *testing.T) {
 
 	createTmpPath := func(relativePath string) string {
 		dirPath := tmpPath(relativePath)
-		os.MkdirAll(dirPath, 0755)
+		err := os.MkdirAll(dirPath, 0755)
+		require.NoError(t, err)
 		return dirPath
 	}
 
 	createTmpFile := func(relativePath string) string {
 
 		filePath := tmpPath(relativePath)
-		os.MkdirAll(filepath.Dir(filePath), 0755)
+		err := os.MkdirAll(filepath.Dir(filePath), 0755)
+		require.NoError(t, err)
 
 		f, err := os.Create(filePath)
 		require.NoError(t, err)
