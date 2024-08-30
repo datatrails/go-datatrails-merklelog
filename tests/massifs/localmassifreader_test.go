@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	gocose "github.com/veraison/go-cose"
 )
 
 // TestLocalMassifReaderGetVerifiedContext ensures the conistency checks are
@@ -339,7 +338,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 
 		// see the GetSignedRoot mock above for the rational behind tampering only a peak
 		{name: "tamper after seal", args: args{tenantIdentity: tenantId3InconsistentLogUpdate, massifIndex: 0}, wantErr: massifs.ErrInconsistentState},
-		{name: "seal peak tamper", args: args{tenantIdentity: tenantId2TamperedLogUpdate, massifIndex: 0}, wantErr: gocose.ErrVerification},
+		{name: "seal peak tamper", args: args{tenantIdentity: tenantId2TamperedLogUpdate, massifIndex: 0}, wantErr: massifs.ErrSealVerifyFailed},
 		{name: "seal shorter than massif", args: args{tenantIdentity: tenantId1SealBehindLog, massifIndex: 0}},
 		{name: "happy path", args: args{tenantIdentity: tenantId0, massifIndex: 0}},
 	}
