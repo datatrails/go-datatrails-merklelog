@@ -66,8 +66,8 @@ type DirCacheOptions struct {
 	// If operating in directory mode, this is the identity of the tenant
 	// expected in the directory. The MassifContext instances are filled in with
 	// this value for this case, as the identity isn't otherwise known.
-	tenantIdentity string
-	tenantDirMode  bool
+	tenantIdentity       string
+	explicitFilePathMode bool
 }
 
 // NewLogDirCacheOptions creates a new DirCacheOptions object with the provided options
@@ -114,7 +114,7 @@ func WithDirCacheTenant(tenantIdentity string) DirCacheOption {
 	return func(o *DirCacheOptions) {
 		o.tenantIdentity = tenantIdentity
 		// allow tenantDirMode in the case where the tenant identity is completely unknown
-		o.tenantDirMode = true
+		o.explicitFilePathMode = true
 	}
 }
 
@@ -178,7 +178,7 @@ func NewLogDirCache(log logger.Logger, opener Opener, opts ...DirCacheOption) (*
 	for _, o := range opts {
 		o(&c.opts)
 	}
-	if c.opts.replicaDir != "" && c.opts.tenantDirMode {
+	if c.opts.replicaDir != "" && c.opts.explicitFilePathMode {
 		return nil, ErrDirModeExclusiveWithReplicaMode
 	}
 	return c, nil
@@ -338,7 +338,7 @@ func isTenantIdLike(tenantIdentityOrLocalPath string) bool {
 //   - a directory path
 func (c *LogDirCache) ResolveMassifDir(tenantIdentityOrLocalPath string) (string, error) {
 
-	if c.opts.tenantDirMode {
+	if c.opts.explicitFilePathMode {
 		return dirFromFilepath(tenantIdentityOrLocalPath)
 	}
 
@@ -354,7 +354,7 @@ func (c *LogDirCache) ResolveMassifDir(tenantIdentityOrLocalPath string) (string
 
 func (c *LogDirCache) ResolveSealDir(tenantIdentityOrLocalPath string) (string, error) {
 
-	if c.opts.tenantDirMode {
+	if c.opts.explicitFilePathMode {
 		return dirFromFilepath(tenantIdentityOrLocalPath)
 	}
 

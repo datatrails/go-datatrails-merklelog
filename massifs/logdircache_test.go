@@ -1,20 +1,53 @@
 package massifs
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/datatrails/go-datatrails-common/logger"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLogDirCache_ResolveMassifDir(t *testing.T) {
+
+	tmpDir := t.TempDir()
+
+	tmpPath := func(relativePath string) string {
+		return filepath.Join(tmpDir, relativePath)
+	}
+
+	createTmpPath := func(relativePath string) string {
+		dirPath := tmpPath(relativePath)
+		os.MkdirAll(dirPath, 0755)
+		return dirPath
+	}
+
+	createTmpFile := func(relativePath string) string {
+
+		filePath := tmpPath(relativePath)
+		os.MkdirAll(filepath.Dir(filePath), 0755)
+
+		f, err := os.Create(filePath)
+		require.NoError(t, err)
+		f.Close()
+		return filePath
+	}
+
+	tenant0 := "tenant/1234"
+	tenantInvalid := "tenant/unknown"
+
+	// The existence of this directory should not affect the the explicit file path mode test cases
+	// Failure of this expectation is part of what this test should catch.
+	createTmpPath(fmt.Sprintf("%s/0/massifs", tenant0))
+
 	type fields struct {
-		log     logger.Logger
-		opts    DirCacheOptions
-		entries map[string]*LogDirCacheEntry
-		opener  Opener
+		replicaDir           string
+		explicitFilePathMode bool
 	}
 	type args struct {
-		tenantIdentityOrLocalPath string
+		identifier string
 	}
 	tests := []struct {
 		name    string
@@ -23,19 +56,53 @@ func TestLogDirCache_ResolveMassifDir(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		// TODO: Add test cases illustrating the different scenarios for tenant
-		// identity vs local path and whether or not the replicaDir option was
-		// set.
+
+		{
+			name:    "in replica dir mode, a tenant id for an non existing tenant replica dir should fail",
+			fields:  fields{explicitFilePathMode: false, replicaDir: tmpDir},
+			args:    args{tenantInvalid},
+			wantErr: true,
+		},
+
+		{
+			name:   "in replica dir mode, a tenant id for an existing tenant replica dir should succeed",
+			fields: fields{explicitFilePathMode: false, replicaDir: tmpDir},
+			args:   args{tenant0},
+			want:   tmpPath(fmt.Sprintf("%s/0/massifs", tenant0)),
+		},
+
+		{
+			name:    "explicit file non-existing file should fail (even if it is tenant id like)",
+			fields:  fields{explicitFilePathMode: true},
+			args:    args{tenant0},
+			wantErr: true,
+		},
+
+		{
+			name: "explicit file non-existing file should fail (even if it is tenant id like)",
+			// And even if that tenant id corresponds to a replica director
+			fields:  fields{explicitFilePathMode: true},
+			args:    args{tenant0},
+			wantErr: true,
+		},
+
+		{
+			name:   "explicit file existing file should return the directory containing the file",
+			fields: fields{explicitFilePathMode: true},
+			args:   args{createTmpFile("mylog/0000000000000000.log")},
+			want:   tmpPath("mylog"),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &LogDirCache{
-				log:     tt.fields.log,
-				opts:    tt.fields.opts,
-				entries: tt.fields.entries,
-				opener:  tt.fields.opener,
+			opts := DirCacheOptions{
+				replicaDir:           tt.fields.replicaDir,
+				explicitFilePathMode: tt.fields.explicitFilePathMode,
 			}
-			got, err := c.ResolveMassifDir(tt.args.tenantIdentityOrLocalPath)
+			c := &LogDirCache{
+				opts: opts,
+			}
+			got, err := c.ResolveMassifDir(tt.args.identifier)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LogDirCache.ResolveMassifDir() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -92,6 +159,45 @@ func TestTenantReplicaPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := TenantMassifReplicaPath(tt.args.tenantIdentity); got != tt.want {
 				t.Errorf("TenantReplicaPath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLogDirCache_ResolveSealDir(t *testing.T) {
+	type fields struct {
+		log     logger.Logger
+		opts    DirCacheOptions
+		entries map[string]*LogDirCacheEntry
+		opener  Opener
+	}
+	type args struct {
+		tenantIdentityOrLocalPath string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &LogDirCache{
+				log:     tt.fields.log,
+				opts:    tt.fields.opts,
+				entries: tt.fields.entries,
+				opener:  tt.fields.opener,
+			}
+			got, err := c.ResolveSealDir(tt.args.tenantIdentityOrLocalPath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LogDirCache.ResolveSealDir() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("LogDirCache.ResolveSealDir() = %v, want %v", got, tt.want)
 			}
 		})
 	}
