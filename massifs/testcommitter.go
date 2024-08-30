@@ -113,7 +113,7 @@ func (c *TestMinimalCommitter) ContextCommitted(ctx context.Context, tenantIdent
 		return err
 	}
 
-	blobPath := TenantMassifSignedRootPath(tenantIdentity, uint32(mc.Start.MassifIndex))
+	blobPath := TenantMassifSignedRootPath(tenantIdentity, mc.Start.MassifIndex)
 
 	// Ensure we set the tag for the last id timestamp covered by the seal. This
 	// supports efficient discovery of "logs to be sealed" both internally and

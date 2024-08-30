@@ -281,21 +281,23 @@ func (r *LocalReader) GetSeal(
 		return SealedState{}, err
 	}
 
+	var sstate *SealedState
+
 	// short circuit direct match, regardless of mode, to support explicit paths
 	dirEntry, ok := r.cache.GetEntry(directory)
 	if ok {
-		sstate, err := dirEntry.GetSeal(r.cache, massifIndex)
+		sstate, err = dirEntry.GetSeal(r.cache, massifIndex)
 		if err != nil {
 			return SealedState{}, err
 		}
 		return *sstate, nil
 	}
 
-	sstate, err := r.cache.ReadSeal(directory, massifIndex)
-		if err != nil {
-			return SealedState{}, err
-		}
-		return *sstate, nil
+	sstate, err = r.cache.ReadSeal(directory, massifIndex)
+	if err != nil {
+		return SealedState{}, err
+	}
+	return *sstate, nil
 
 }
 
