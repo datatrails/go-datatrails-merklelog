@@ -13,6 +13,7 @@ replace (
 require (
 	github.com/datatrails/go-datatrails-common v0.15.1
 	github.com/datatrails/go-datatrails-merklelog/massifs v0.0.0-00010101000000-000000000000
+	github.com/datatrails/go-datatrails-merklelog/mmr v0.0.2
 	github.com/stretchr/testify v1.9.0
 )
 
@@ -37,8 +38,7 @@ require (
 	github.com/cilium/ebpf v0.12.3 // indirect
 	github.com/containerd/cgroups/v3 v3.0.2 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
-	github.com/datatrails/go-datatrails-merklelog/mmr v0.0.2 // indirect
-	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.0.1 // indirect
+	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
