@@ -233,46 +233,46 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 				massifs.WithReaderOption(massifs.WithCBORCodec(tc.RootSignerCodec)),
 			)
 		})
-	dc.On("GetEntry", mock.Anything).Return(
-		func(directory string) (*massifs.LogDirCacheEntry, bool) {
-			return nil, false
-		})
 	dc.On("ResolveMassifDir", mock.Anything).Return(
 		func(directory string) (string, error) {
 			return directory, nil
 		})
-	dc.On("ReadMassif", mock.Anything, mock.Anything).Return(
-		func(directory string, massifIndex uint64) (*massifs.MassifContext, error) {
+	dc.On("ReadMassifDirEntry", mock.Anything).Return(
+		func(directory string) (massifs.DirCacheEntry, error) {
+			dce := mocks.NewDirCacheEntry(t)
+			dce.On("ReadMassif", mock.Anything, mock.Anything).Return(
+				func(c massifs.DirCache, massifIndex uint64) (*massifs.MassifContext, error) {
+					mc, err := findMassif(directory, massifIndex)
+					if err != nil {
+						return nil, err
+					}
+					switch directory {
+					case tenantId2TamperedLogUpdate:
 
-			mc, err := findMassif(directory, massifIndex)
-			if err != nil {
-				return nil, err
-			}
-			switch directory {
-			case tenantId2TamperedLogUpdate:
+						// For the seal verification check, we ensure that the seal is
+						// generated against the un tampered data in the GetSignedRoot
+						// mock. Here, we ensure that all other observers see only the
+						// tampered data.
 
-				// For the seal verification check, we ensure that the seal is
-				// generated against the un tampered data in the GetSignedRoot
-				// mock. Here, we ensure that all other observers see only the
-				// tampered data.
+						mmrSizeOld := sizeBeforeLeaves(mc, 8)
+						require.GreaterOrEqual(t, mmrSizeOld, mc.Start.FirstIndex)
+						peaks := mmr.Peaks(mmrSizeOld)
+						// remember, the peaks are *positions*
+						tamperNode(mc, peaks[len(peaks)-1]-1)
 
-				mmrSizeOld := sizeBeforeLeaves(mc, 8)
-				require.GreaterOrEqual(t, mmrSizeOld, mc.Start.FirstIndex)
-				peaks := mmr.Peaks(mmrSizeOld)
-				// remember, the peaks are *positions*
-				tamperNode(mc, peaks[len(peaks)-1]-1)
+					case tenantId3InconsistentLogUpdate:
+						// tamper *after* the seal
+						// this time, tamper a peak after the seal, this simulates the
+						// case where the extension is inconsistent with the seal.
+						peaks := mmr.Peaks(mc.RangeCount())
+						// Remember, the peaks are *positions*
+						tamperNode(mc, peaks[len(peaks)-1]-1)
 
-			case tenantId3InconsistentLogUpdate:
-				// tamper *after* the seal
-				// this time, tamper a peak after the seal, this simulates the
-				// case where the extension is inconsistent with the seal.
-				peaks := mmr.Peaks(mc.RangeCount())
-				// Remember, the peaks are *positions*
-				tamperNode(mc, peaks[len(peaks)-1]-1)
-
-			default:
-			}
-			return mc, nil
+					default:
+					}
+					return mc, nil
+				})
+			return dce, nil
 		})
 
 	// To provoke the case where the local, trusted, seal is inconsistent with

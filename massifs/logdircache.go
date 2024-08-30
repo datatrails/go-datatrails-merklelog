@@ -38,12 +38,31 @@ type Opener interface {
 	Open(string) (io.ReadCloser, error)
 }
 
+type EntryInfo struct {
+	Directory        string
+	FirstMassifIndex uint32
+	HeadMassifIndex  uint32
+	FirstSealIndex   uint32
+	HeadSealIndex    uint32
+}
+
+type DirCacheEntry interface {
+	ReadMassifStart(c DirCache, logfile string) (MassifStart, error)
+	ReadMassif(c DirCache, massifIndex uint64) (*MassifContext, error)
+	ReadSeal(c DirCache, fileName string) (*SealedState, error)
+	GetSeal(c DirCache, massifIndex uint64) (*SealedState, error)
+	GetInfo() EntryInfo
+}
+
 type DirCache interface {
 	DirResolver
+	GetOpener() Opener
 	ReplaceMassif(logfile string, mc *MassifContext) error
 	ReplaceSeal(sealFilename string, massifIndex uint32, sealedState *SealedState) error
 	DeleteEntry(directory string)
-	GetEntry(directory string) (*LogDirCacheEntry, bool)
+	GetEntry(directory string) (DirCacheEntry, bool)
+	ReadMassifDirEntry(directory string) (DirCacheEntry, error)
+	ReadSealDirEntry(directory string) (DirCacheEntry, error)
 	FindMassifFiles(directory string) error
 	ReadMassifStart(filepath string) (MassifStart, string, error)
 	ReadMassif(directory string, massifIndex uint64) (*MassifContext, error)
@@ -188,8 +207,24 @@ func (c *LogDirCache) ReplaceOptions(opts ...DirCacheOption) {
 	c.opts = NewLogDirCacheOptions(ReaderOptions{}, opts...)
 }
 
+// getters so we can use interfaces for mocking
+
 func (c *LogDirCache) Options() DirCacheOptions {
 	return c.opts
+}
+
+func (c *LogDirCache) GetOpener() Opener {
+	return c.opener
+}
+
+func (d *LogDirCacheEntry) GetInfo() EntryInfo {
+	return EntryInfo{
+		Directory:        d.LogDirPath,
+		FirstMassifIndex: d.FirstMassifIndex,
+		HeadMassifIndex:  d.HeadMassifIndex,
+		FirstSealIndex:   d.FirstSealIndex,
+		HeadSealIndex:    d.HeadSealIndex,
+	}
 }
 
 func (c *LogDirCache) Open(filePath string) (io.ReadCloser, error) {
@@ -202,7 +237,7 @@ func (c *LogDirCache) DeleteEntry(directory string) {
 }
 
 // GetEntry returns an existing entry and true or nil and false if the directory does not exist
-func (c *LogDirCache) GetEntry(directory string) (*LogDirCacheEntry, bool) {
+func (c *LogDirCache) GetEntry(directory string) (DirCacheEntry, bool) {
 	d, ok := c.entries[directory]
 	return d, ok
 }
@@ -280,6 +315,36 @@ func (c *LogDirCache) FindSealFiles(directory string) error {
 	return nil
 }
 
+func (c *LogDirCache) ReadMassifDirEntry(directory string) (DirCacheEntry, error) {
+	dirEntry, ok := c.entries[directory]
+	if ok {
+		return dirEntry, nil
+	}
+	err := c.FindMassifFiles(directory)
+	if err != nil {
+		return nil, err
+	}
+
+	// Note: ok can't be false after FindMassifFiles
+	dirEntry, _ = c.entries[directory]
+	return dirEntry, nil
+}
+
+func (c *LogDirCache) ReadSealDirEntry(directory string) (DirCacheEntry, error) {
+	dirEntry, ok := c.entries[directory]
+	if ok {
+		return dirEntry, nil
+	}
+	err := c.FindSealFiles(directory)
+	if err != nil {
+		return nil, err
+	}
+
+	// Note: ok can't be false after FindSealFiles
+	dirEntry, _ = c.entries[directory]
+	return dirEntry, nil
+}
+
 // ReadMassifStart reads and caches the start header for the log file
 // The directory for the cache entry is established from the logfile name
 // The established directory for the cache entry is returned
@@ -294,31 +359,19 @@ func (c *LogDirCache) ReadMassifStart(logfile string) (MassifStart, string, erro
 // previously been scanned, otherwise, the previous scan is re-used.
 func (c *LogDirCache) ReadMassif(directory string, massifIndex uint64) (*MassifContext, error) {
 
-	// If we haven't scanned this directory before, scan it now.
-	_, ok := c.entries[directory]
-	if !ok {
-		err := c.FindMassifFiles(directory)
-		if err != nil {
-			return nil, err
-		}
+	dirEntry, err := c.ReadMassifDirEntry(directory)
+	if err != nil {
+		return nil, err
 	}
-	// If the scan did not find the massif path, ReadMassif will error
-	dirEntry := c.getDirEntry(directory)
 	return dirEntry.ReadMassif(c, massifIndex)
 }
 
 func (c *LogDirCache) ReadSeal(directory string, massifIndex uint64) (*SealedState, error) {
 
-	// If we haven't scanned this directory before, scan it now.
-	_, ok := c.entries[directory]
-	if !ok {
-		err := c.FindSealFiles(directory)
-		if err != nil {
-			return nil, err
-		}
+	dirEntry, err := c.ReadSealDirEntry(directory)
+	if err != nil {
+		return nil, err
 	}
-	// If the scan did not find the massif path, ReadMassif will error
-	dirEntry := c.getDirEntry(directory)
 	return dirEntry.GetSeal(c, massifIndex)
 }
 
@@ -494,13 +547,13 @@ func (d *LogDirCacheEntry) ReadSeal(c DirCache, fileName string) (*SealedState, 
 	return cached, nil
 }
 
-func (d *LogDirCacheEntry) ReadMassifStart(dirCache *LogDirCache, logfile string) (MassifStart, error) {
+func (d *LogDirCacheEntry) ReadMassifStart(dirCache DirCache, logfile string) (MassifStart, error) {
 
 	if ms, ok := d.MassifStarts[logfile]; ok {
 		return ms, nil
 	}
 
-	f, err := dirCache.opener.Open(logfile)
+	f, err := dirCache.GetOpener().Open(logfile)
 	if err != nil {
 		return MassifStart{}, err
 	}
@@ -524,7 +577,7 @@ func (d *LogDirCacheEntry) ReadMassifStart(dirCache *LogDirCache, logfile string
 	if err != nil {
 		return MassifStart{}, err
 	}
-	err = d.setMassifStart(dirCache.opts, logfile, ms)
+	err = d.setMassifStart(dirCache.Options(), logfile, ms)
 	if err != nil {
 		return MassifStart{}, err
 	}

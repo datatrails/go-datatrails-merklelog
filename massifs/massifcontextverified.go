@@ -33,6 +33,10 @@ var (
 	ErrTenantIdInconsistent       = errors.New("the tenant identity on the context does not match the tenant identity provided")
 )
 
+// VerifiedContext describes a verified massif context
+//
+// Methods which both read a massif and then require that the massif's associated
+// seal can be verified, against the read data, should return a VerifiedContext.
 type VerifiedContext struct {
 	MassifContext
 

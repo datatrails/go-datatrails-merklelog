@@ -38,23 +38,23 @@ func (_m *DirCache) FindMassifFiles(directory string) error {
 }
 
 // GetEntry provides a mock function with given fields: directory
-func (_m *DirCache) GetEntry(directory string) (*massifs.LogDirCacheEntry, bool) {
+func (_m *DirCache) GetEntry(directory string) (massifs.DirCacheEntry, bool) {
 	ret := _m.Called(directory)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetEntry")
 	}
 
-	var r0 *massifs.LogDirCacheEntry
+	var r0 massifs.DirCacheEntry
 	var r1 bool
-	if rf, ok := ret.Get(0).(func(string) (*massifs.LogDirCacheEntry, bool)); ok {
+	if rf, ok := ret.Get(0).(func(string) (massifs.DirCacheEntry, bool)); ok {
 		return rf(directory)
 	}
-	if rf, ok := ret.Get(0).(func(string) *massifs.LogDirCacheEntry); ok {
+	if rf, ok := ret.Get(0).(func(string) massifs.DirCacheEntry); ok {
 		r0 = rf(directory)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*massifs.LogDirCacheEntry)
+			r0 = ret.Get(0).(massifs.DirCacheEntry)
 		}
 	}
 
@@ -65,6 +65,26 @@ func (_m *DirCache) GetEntry(directory string) (*massifs.LogDirCacheEntry, bool)
 	}
 
 	return r0, r1
+}
+
+// GetOpener provides a mock function with given fields:
+func (_m *DirCache) GetOpener() massifs.Opener {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOpener")
+	}
+
+	var r0 massifs.Opener
+	if rf, ok := ret.Get(0).(func() massifs.Opener); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(massifs.Opener)
+		}
+	}
+
+	return r0
 }
 
 // Open provides a mock function with given fields: fileName
@@ -145,6 +165,36 @@ func (_m *DirCache) ReadMassif(directory string, massifIndex uint64) (*massifs.M
 	return r0, r1
 }
 
+// ReadMassifDirEntry provides a mock function with given fields: directory
+func (_m *DirCache) ReadMassifDirEntry(directory string) (massifs.DirCacheEntry, error) {
+	ret := _m.Called(directory)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReadMassifDirEntry")
+	}
+
+	var r0 massifs.DirCacheEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (massifs.DirCacheEntry, error)); ok {
+		return rf(directory)
+	}
+	if rf, ok := ret.Get(0).(func(string) massifs.DirCacheEntry); ok {
+		r0 = rf(directory)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(massifs.DirCacheEntry)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(directory)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ReadMassifStart provides a mock function with given fields: filepath
 func (_m *DirCache) ReadMassifStart(filepath string) (massifs.MassifStart, string, error) {
 	ret := _m.Called(filepath)
@@ -203,6 +253,36 @@ func (_m *DirCache) ReadSeal(directory string, massifIndex uint64) (*massifs.Sea
 
 	if rf, ok := ret.Get(1).(func(string, uint64) error); ok {
 		r1 = rf(directory, massifIndex)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ReadSealDirEntry provides a mock function with given fields: directory
+func (_m *DirCache) ReadSealDirEntry(directory string) (massifs.DirCacheEntry, error) {
+	ret := _m.Called(directory)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReadSealDirEntry")
+	}
+
+	var r0 massifs.DirCacheEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (massifs.DirCacheEntry, error)); ok {
+		return rf(directory)
+	}
+	if rf, ok := ret.Get(0).(func(string) massifs.DirCacheEntry); ok {
+		r0 = rf(directory)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(massifs.DirCacheEntry)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(directory)
 	} else {
 		r1 = ret.Error(1)
 	}

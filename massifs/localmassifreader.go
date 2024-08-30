@@ -40,7 +40,7 @@ type ReplicaReader interface {
 		opts ...ReaderOption,
 	) (*VerifiedContext, error)
 	ReplaceVerifiedContext(
-		ctx context.Context, vc *VerifiedContext, writeOpener WriteAppendOpener,
+		vc *VerifiedContext, writeOpener WriteAppendOpener,
 	) error
 
 	InReplicaMode() bool
@@ -69,17 +69,23 @@ func NewLocalReader(
 }
 
 // InReplicaMode returns true if the reader is in replica mode
+//
+// Replica mode shoud be used when efficient, consistent, replication of logs
+// for multiple tenants is desired. In replica mode, the repilcated logs are
+// maintained in a tree under the configured ReplicaDir, using a path scheme
+// that matches datatrails remote schema.
 func (r *LocalReader) InReplicaMode() bool {
 	return r.cache.Options().replicaDir != ""
 }
 
 // GetReplicaDir returns the replica directory
+// This is significant when maitaining replicas for multiple tenants. See InReplicaMode for more information
 func (r *LocalReader) GetReplicaDir() string {
 	return r.cache.Options().replicaDir
 }
 
 // GetDirEntry returns the directory entry for the given tenant identity or local path
-func (r *LocalReader) GetDirEntry(tenantIdentityOrLocalPath string) (*LogDirCacheEntry, bool) {
+func (r *LocalReader) GetDirEntry(tenantIdentityOrLocalPath string) (DirCacheEntry, bool) {
 	return r.cache.GetEntry(tenantIdentityOrLocalPath)
 }
 
@@ -180,7 +186,7 @@ func (r *LocalReader) VerifyContext(
 // verified, and that the writeOpener opens the file in append mode if it
 // already exists.
 func (r *LocalReader) ReplaceVerifiedContext(
-	ctx context.Context, vc *VerifiedContext, writeOpener WriteAppendOpener,
+	vc *VerifiedContext, writeOpener WriteAppendOpener,
 ) error {
 
 	logFilename := r.GetMassifLocalPath(vc.TenantIdentity, vc.Start.MassifIndex)
@@ -239,29 +245,17 @@ func (r *LocalReader) GetMassif(
 	opts ...ReaderOption,
 ) (MassifContext, error) {
 
-	directory, err := r.ResolveMassifDir(tenantIdentityOrLocalPath)
+	var mc *MassifContext
+
+	dirEntry, err := r.resolveMassifDirEntry(tenantIdentityOrLocalPath)
 	if err != nil {
 		return MassifContext{}, err
 	}
 
-	var mc *MassifContext
-	// short circuit direct match, regardless of mode, to support explicit paths
-	dirEntry, ok := r.cache.GetEntry(directory)
-	if ok {
-		if mc, err = dirEntry.ReadMassif(r.cache, massifIndex); err != nil {
-			return MassifContext{}, err
-		}
-		// support situations where the context tenant can't be infered from the storage path
-		if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
-			return MassifContext{}, err
-		}
-
-		return copyCachedMassif(mc), nil
-	}
-
-	if mc, err = r.cache.ReadMassif(directory, massifIndex); err != nil {
+	if mc, err = dirEntry.ReadMassif(r.cache, massifIndex); err != nil {
 		return MassifContext{}, err
 	}
+
 	// support situations where the context tenant can't be infered from the storage path
 	if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
 		return MassifContext{}, err
@@ -276,29 +270,16 @@ func (r *LocalReader) GetSeal(
 	opts ...ReaderOption,
 ) (SealedState, error) {
 
-	directory, err := r.ResolveSealDir(tenantIdentityOrLocalPath)
+	dirEntry, err := r.resolveSealDirEntry(tenantIdentityOrLocalPath)
 	if err != nil {
 		return SealedState{}, err
 	}
 
-	var sstate *SealedState
-
-	// short circuit direct match, regardless of mode, to support explicit paths
-	dirEntry, ok := r.cache.GetEntry(directory)
-	if ok {
-		sstate, err = dirEntry.GetSeal(r.cache, massifIndex)
-		if err != nil {
-			return SealedState{}, err
-		}
-		return *sstate, nil
-	}
-
-	sstate, err = r.cache.ReadSeal(directory, massifIndex)
+	sstate, err := dirEntry.GetSeal(r.cache, massifIndex)
 	if err != nil {
 		return SealedState{}, err
 	}
 	return *sstate, nil
-
 }
 
 // GetSignedRoot satisfies the SealGetter interface.
@@ -320,41 +301,17 @@ func (r *LocalReader) GetHeadMassif(
 	opts ...ReaderOption,
 ) (MassifContext, error) {
 
-	var err error
-
-	directory, err := r.cache.ResolveMassifDir(tenantIdentityOrLocalPath)
-	if err != nil {
-		return MassifContext{}, err
-	}
-
-	dirEntry, ok := r.cache.GetEntry(directory)
-
 	var mc *MassifContext
-	if ok {
-		if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.HeadMassifIndex)); err != nil {
-			return MassifContext{}, err
-		}
 
-		// support situations where the context tenant can't be infered from the storage path
-		if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
-			return MassifContext{}, err
-		}
-
-		return copyCachedMassif(mc), nil
-	}
-
-	err = r.cache.FindMassifFiles(directory)
+	dirEntry, err := r.resolveMassifDirEntry(tenantIdentityOrLocalPath)
 	if err != nil {
 		return MassifContext{}, err
 	}
-	dirEntry, ok = r.cache.GetEntry(directory)
-	if !ok {
-		// It's a bug in FindMassifFiles if this case actually happens in practice.
-		return MassifContext{}, fmt.Errorf("failed to prime directory: %s", directory)
-	}
-	if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.HeadMassifIndex)); err != nil {
+
+	if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.GetInfo().HeadMassifIndex)); err != nil {
 		return MassifContext{}, err
 	}
+
 	// support situations where the context tenant can't be infered from the storage path
 	if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
 		return MassifContext{}, err
@@ -368,48 +325,49 @@ func (r *LocalReader) GetFirstMassif(
 	opts ...ReaderOption,
 ) (MassifContext, error) {
 
-	var err error
-
-	directory, err := r.cache.ResolveMassifDir(tenantIdentityOrLocalPath)
-	if err != nil {
-		return MassifContext{}, err
-	}
-
 	var mc *MassifContext
 
-	dirEntry, ok := r.cache.GetEntry(directory)
-	if ok {
+	dirEntry, err := r.resolveMassifDirEntry(tenantIdentityOrLocalPath)
 
-		if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.FirstMassifIndex)); err != nil {
-			return MassifContext{}, err
-		}
-		// support situations where the context tenant can't be infered from the storage path
-		if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
-			return MassifContext{}, err
-		}
-
-		return copyCachedMassif(mc), nil
-	}
-
-	err = r.cache.FindMassifFiles(directory)
-	if err != nil {
+	if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.GetInfo().FirstMassifIndex)); err != nil {
 		return MassifContext{}, err
 	}
-	dirEntry, ok = r.cache.GetEntry(directory)
-	if !ok {
-		// It's a bug in FindMassifFiles if this case actually happens in practice.
-		return MassifContext{}, fmt.Errorf("failed to prime directory: %s", directory)
-	}
-	if mc, err = dirEntry.ReadMassif(r.cache, uint64(dirEntry.FirstMassifIndex)); err != nil {
-		return MassifContext{}, err
-	}
-
 	// support situations where the context tenant can't be infered from the storage path
 	if err = reconcileCachedContextTenantIdentity(mc, tenantIdentityOrLocalPath); err != nil {
 		return MassifContext{}, err
 	}
 
 	return copyCachedMassif(mc), nil
+}
+
+func (r *LocalReader) resolveMassifDirEntry(tenantIdentityOrLocalPath string) (DirCacheEntry, error) {
+
+	directory, err := r.cache.ResolveMassifDir(tenantIdentityOrLocalPath)
+	if err != nil {
+		return nil, err
+	}
+
+	dirEntry, err := r.cache.ReadMassifDirEntry(directory)
+	if err != nil {
+		return nil, err
+	}
+	// The DirCacheEntry exists to facilitate mocked testing, this method has to return a concrete type
+	return dirEntry, nil
+}
+
+func (r *LocalReader) resolveSealDirEntry(tenantIdentityOrLocalPath string) (*LogDirCacheEntry, error) {
+
+	directory, err := r.cache.ResolveSealDir(tenantIdentityOrLocalPath)
+	if err != nil {
+		return nil, err
+	}
+
+	dirEntry, err := r.cache.ReadSealDirEntry(directory)
+	if err != nil {
+		return nil, err
+	}
+	// The DirCacheEntry exists to facilitate mocked testing, this method has to return a concrete type
+	return dirEntry.(*LogDirCacheEntry), nil
 }
 
 // GetMassifLocalPath returns the local path for the massif identified by the

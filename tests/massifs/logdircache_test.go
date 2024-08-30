@@ -198,8 +198,9 @@ func TestNewLogDirCacheEntry(t *testing.T) {
 				assert.True(t, strings.HasPrefix(err.Error(), tt.wantErrPrefix))
 			} else {
 				assert.Nil(t, err, "unexpected error")
-				dirEntry, ok := cache.GetEntry(tt.logs)
+				e, ok := cache.GetEntry(tt.logs)
 				assert.True(t, ok)
+				dirEntry := e.(*massifs.LogDirCacheEntry)
 				assert.Equal(t, tt.outcome, dirEntry.MassifPaths)
 			}
 		})

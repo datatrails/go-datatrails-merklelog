@@ -178,17 +178,17 @@ func (_m *ReplicaReader) InReplicaMode() bool {
 	return r0
 }
 
-// ReplaceVerifiedContext provides a mock function with given fields: ctx, vc, writeOpener
-func (_m *ReplicaReader) ReplaceVerifiedContext(ctx context.Context, vc *massifs.VerifiedContext, writeOpener massifs.WriteAppendOpener) error {
-	ret := _m.Called(ctx, vc, writeOpener)
+// ReplaceVerifiedContext provides a mock function with given fields: vc, writeOpener
+func (_m *ReplicaReader) ReplaceVerifiedContext(vc *massifs.VerifiedContext, writeOpener massifs.WriteAppendOpener) error {
+	ret := _m.Called(vc, writeOpener)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ReplaceVerifiedContext")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *massifs.VerifiedContext, massifs.WriteAppendOpener) error); ok {
-		r0 = rf(ctx, vc, writeOpener)
+	if rf, ok := ret.Get(0).(func(*massifs.VerifiedContext, massifs.WriteAppendOpener) error); ok {
+		r0 = rf(vc, writeOpener)
 	} else {
 		r0 = ret.Error(0)
 	}
