@@ -147,7 +147,7 @@ func (r *LocalReader) GetVerifiedContext(
 	return mc.verifyContext(ctx, options)
 }
 
-// GetHeadVerifiedContext gets the massif and its seal and then verifies the massif
+// GetHeadVerifiedContext gets the head massif and its seal and then verifies the massif
 // data against the seal. If the caller provides the expected public key, the
 // public key on the seal is required to match
 func (r *LocalReader) GetHeadVerifiedContext(
