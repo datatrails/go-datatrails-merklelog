@@ -24,9 +24,42 @@ type TestLocalReaderContext struct {
 	AzuriteReader MassifReader
 }
 
+// TestLogCreatorContext holds the context data resulting from a call to CreateLog
+// Unless one or more of the TEstCreateLogOptions are used, the context will not have anything interesting in it.
+type TestLogCreatorContext struct {
+	Preimages map[uint64][]byte
+}
+
+type TestCreateLogOption func(*TestLogCreatorContext)
+
+func TestWithCreateLogPreImages() TestCreateLogOption {
+	return func(c *TestLogCreatorContext) {
+		c.Preimages = make(map[uint64][]byte)
+	}
+}
+
 // CreateLog creates a log with the given tenant identity, massif height, and mmr size,
 // any previous seal or massif blobs for the same tenant are first deleted
-func (c *TestLocalReaderContext) CreateLog(tenantIdentity string, massifHeight uint8, massifCount uint32) {
+func (c *TestLocalReaderContext) CreateLog(
+	tenantIdentity string, massifHeight uint8, massifCount uint32,
+	opts ...TestCreateLogOption) {
+
+	logContext := &TestLogCreatorContext{}
+	for _, opt := range opts {
+		opt(logContext)
+	}
+
+	generator := MMRTestingGenerateNumberedLeaf
+
+	// If the caller needs to work with the pre-images we wrap the generator to retain them
+	if logContext.Preimages != nil {
+		generator = func(tenantIdentity string, base, i uint64) mmrtesting.AddLeafArgs {
+
+			args := generator(tenantIdentity, base, i)
+			logContext.Preimages[base+i] = args.Value
+			return args
+		}
+	}
 
 	// clear out any previous log
 	c.AzuriteContext.DeleteBlobsByPrefix(TenantMassifPrefix(tenantIdentity))
@@ -35,7 +68,7 @@ func (c *TestLocalReaderContext) CreateLog(tenantIdentity string, massifHeight u
 		CommitmentEpoch: 1,
 		MassifHeight:    massifHeight,
 		SealOnCommit:    true, // create seals for each massif as we go
-	}, c.AzuriteContext, c.G, MMRTestingGenerateNumberedLeaf)
+	}, c.AzuriteContext, c.G, generator)
 	require.NoError(c.AzuriteContext.T, err)
 
 	leavesPerMassif := mmr.HeightIndexLeafCount(uint64(massifHeight) - 1)
