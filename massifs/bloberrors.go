@@ -104,7 +104,7 @@ func IsRateLimiting(err error) (time.Duration, bool) {
 
 	// It is a 429, check if there is a Retry-After header and return the indicated time if possible.
 
-	// Retry-After header is optional, the
+	// Retry-After header is optional, if it is not present, the caller should still see it as a 429
 	if rerr.RawResponse == nil {
 		return 0, true
 	}
