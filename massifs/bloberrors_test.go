@@ -96,6 +96,9 @@ func TestIsRateLimiting(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			wait, result := IsRateLimiting(tt.err)
+			// Note: we use a range check here because parsing the Retry-After header
+			// uses time.Until, which then calls time.Now, in the case where the header is a date.
+			// this means this test would be flaky. We could mock time.Now but that would be a lot of work
 			if tt.minWait > 0 {
 				assert.GreaterOrEqual(t, wait, tt.minWait)
 			}
