@@ -33,6 +33,7 @@ func AsResponseError(err error) (azcore.ResponseError, bool) {
 	var ok bool
 	var rerr *azcore.ResponseError
 
+	//nolint
 	if rerr, ok = err.(*azcore.ResponseError); ok {
 		return *rerr, true
 	}
