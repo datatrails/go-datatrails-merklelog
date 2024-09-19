@@ -161,9 +161,12 @@ func (mc *MassifContext) verifyContext(
 
 	msg, state, err := options.sealGetter.GetSignedRoot(ctx, mc.TenantIdentity, mc.Start.MassifIndex)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"%w: failed to get seal for massif %d for tenant %s: %v",
-			ErrSealNotFound, mc.Start.MassifIndex, mc.TenantIdentity, WrapBlobNotFound(err))
+		if IsBlobNotFound(err) {
+			return nil, fmt.Errorf(
+				"%w: failed to get seal for massif %d for tenant %s: %v",
+				ErrSealNotFound, mc.Start.MassifIndex, mc.TenantIdentity, WrapBlobNotFound(err))
+		}
+		return nil, err
 	}
 
 	state.Root, err = mmr.GetRoot(state.MMRSize, mc, sha256.New())
