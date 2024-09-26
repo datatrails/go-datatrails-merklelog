@@ -1,7 +1,5 @@
 package mmr
 
-import "hash"
-
 // ConsistencyProof describes a proof that the merkle log defined by size a is
 // perfectly contained in the log described by size b. This structure aligns us
 // with the consistency proof format described in this ietf draft:
@@ -12,9 +10,11 @@ import "hash"
 // A reference introducing the concept of consistency proofs in merkle trees:
 // https://pangea.cloud/docs/audit/merkle-trees#outline-consistency-proof
 type ConsistencyProof struct {
-	MMRSizeA uint64   `cbor:"1,keyasint"`
-	MMRSizeB uint64   `cbor:"2,keyasint"`
-	Path     [][]byte `cbor:"3,keyasint"`
+	MMRSizeA uint64 `cbor:"1,keyasint"`
+	MMRSizeB uint64 `cbor:"2,keyasint"`
+	// legacy proof format
+	PathBagged [][]byte   `cbor:"3,keyasint"`
+	Path       [][][]byte `cbor:"4,keyasint"`
 }
 
 // IndexConsistencyProof creates a proof that mmr B appends to mmr A.
@@ -29,7 +29,7 @@ type ConsistencyProof struct {
 // and MMR(B) for each "old" peak in MMR(A) we show there is a path to a "new"
 // or "same" peak in MMR(B)
 func IndexConsistencyProof(
-	mmrSizeA, mmrSizeB uint64, store indexStoreGetter, hasher hash.Hash,
+	store indexStoreGetter, mmrSizeA, mmrSizeB uint64,
 ) (ConsistencyProof, error) {
 	proof := ConsistencyProof{
 		MMRSizeA: mmrSizeA,
@@ -43,11 +43,11 @@ func IndexConsistencyProof(
 	// as the input indices to prove
 	for _, iPeakA := range peaksA {
 
-		peakProof, _, _, err := IndexProofPath(mmrSizeB, store, iPeakA-1)
+		peakProof, err := IndexProof(store, mmrSizeB, iPeakA-1)
 		if err != nil {
 			return ConsistencyProof{}, err
 		}
-		proof.Path = append(proof.Path, peakProof...)
+		proof.Path = append(proof.Path, peakProof)
 	}
 	return proof, nil
 

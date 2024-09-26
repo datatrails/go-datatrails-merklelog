@@ -426,14 +426,15 @@ func (mc *MassifContext) AddHashedLeaf(
 //
 // This generates a consistency proof from the mmr index identified by the state
 // size to the last mmr index present in the context. That proof is then
-// verified as consistent with the root provided in the base state.
+// verified as consistent with the accumulator provided in the base state.
 //
 // Returns:
-//   - the latest root on success
-//   - an error otherwise (the returned root is nil)
-func (mc *MassifContext) CheckConsistency(baseState MMRState) ([]byte, error) {
+//   - the latest accumulator on success
+//   - an error otherwise (the returned accumulator is nil)
+func (mc *MassifContext) CheckConsistency(
+	baseState MMRState) ([][]byte, error) {
 
-	if baseState.Root == nil {
+	if baseState.Peaks == nil {
 		return nil, ErrStateRootMissing
 	}
 
@@ -451,15 +452,8 @@ func (mc *MassifContext) CheckConsistency(baseState MMRState) ([]byte, error) {
 		return nil, nil
 	}
 
-	cp, err := mmr.IndexConsistencyProof(
-		baseState.MMRSize, mmrSizeCurrent, mc, sha256.New())
-	if err != nil {
-		return nil, fmt.Errorf(
-			"%w: failed to produce proof. tenant=%s, massif=%d",
-			ErrGeneratingConsistencyProof, mc.TenantIdentity, mc.Start.MassifIndex)
-	}
-
-	ok, rootB, err := mmr.CheckConsistency(mc, sha256.New(), cp, baseState.Root)
+	ok, peaksB, err := mmr.CheckConsistency(
+		mc, sha256.New(), baseState.MMRSize, mmrSizeCurrent, baseState.Peaks)
 	if err != nil {
 		return nil,
 			fmt.Errorf("%w: proof verification error: err=%s, tenant=%s, massif=%d",
@@ -473,7 +467,7 @@ func (mc *MassifContext) CheckConsistency(baseState MMRState) ([]byte, error) {
 				mc.TenantIdentity, mc.Start.MassifIndex)
 	}
 
-	return rootB, nil
+	return peaksB, nil
 }
 
 // setLastIdTimestamp must be called after A
@@ -639,39 +633,4 @@ func (mc MassifContext) RangeCount() uint64 {
 // added.
 func (mc MassifContext) LastLeafMMRIndex() uint64 {
 	return RangeLastLeafIndex(mc.Start.FirstIndex, mc.Start.MassifHeight)
-}
-
-// TreeRootIndex returns the root index for the tree with height
-func TreeRootIndex(height uint8) uint64 {
-	return (1 << height) - 2
-}
-
-// RangeRootIndex return the Massif root node's index in the overall MMR  given
-// the massif height and the first index of the MMR it contains
-func RangeRootIndex(firstIndex uint64, height uint8) uint64 {
-	return firstIndex + (1 << height) - 2
-}
-
-// RangeLastLeafIndex returns the mmr index of the last leaf given the first
-// index of a massif and its height.
-func RangeLastLeafIndex(firstIndex uint64, height uint8) uint64 {
-	return firstIndex + TreeLastLeafIndex(height)
-}
-
-// TreeLastLeafIndex returns the *MMR* index of the last leaf in the tree with
-// the given height (1 << h) - h -1 works because the number of nodes required
-// to include the last leaf is always equal to the MMR height produced by node
-func TreeLastLeafIndex(height uint8) uint64 {
-	return (1 << height) - uint64(height) - 1
-}
-
-// TreeSize returns the maximum byte size of the tree based on the defined log
-// entry size
-func TreeSize(height uint8) uint64 {
-	return TreeCount(height) * LogEntryBytes
-}
-
-// MaxCount returns the node count
-func TreeCount(height uint8) uint64 {
-	return ((1 << height) - 1)
 }

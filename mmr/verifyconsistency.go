@@ -1,28 +1,47 @@
 package mmr
 
 import (
+	"bytes"
+	"errors"
 	"hash"
 )
 
+var (
+	ErrConsistencyCheck = errors.New("consistency check failed")
+)
+
+// CheckConsistency verifies that the current state mmrSizeB is consistent with
+// the provided accumulator for the earlier size A The provided accumulator
+// (peakHashesA) should be taken from a trusted source, typically a signed mmr
+// state.
+//
+// See VerifyConsistency for more.
 func CheckConsistency(
 	store indexStoreGetter, hasher hash.Hash,
-	cp ConsistencyProof, peakHashesA [][]byte) (bool, error) {
+	mmrSizeA, mmrSizeB uint64, peakHashesA [][]byte) (bool, [][]byte, error) {
 
-	peakHashesB, err := PeakHashes(store, cp.MMRSizeB)
+	// Obtain the proofs from the current store
+	cp, err := IndexConsistencyProof(store, mmrSizeA, mmrSizeB)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 
-	return VerifyConsistency(
-		hasher, cp, peakHashesA, peakHashesB), nil
+	// Obtain the expected resulting peaks from the current store
+	peakHashesB, err := PeakHashes(store, cp.MMRSizeB)
+	if err != nil {
+		return false, nil, err
+	}
+
+	return VerifyConsistency(hasher, cp, peakHashesA, peakHashesB)
 }
 
 // VerifyConsistency verifies the consistency between two MMR states.
+//
 // The MMR(A) and MMR(B) states are identified by the fields MMRSizeA and
 // MMRSizeB in the proof. peakHashesA and B are the node values corresponding to
 // the MMR peaks of each respective state. The Path in the proof contains the
 // nodes necessary to prove each A-peak reaches a B-peak. The path contains the
-// concatenated inclusion proofs for each A-peak in MMR(B).
+// inclusion proofs for each A-peak in MMR(B).
 //
 //	    MMR(A):[7, 8]      MMR(B):[7, 10, 11]
 //	 2       7                7
@@ -33,67 +52,47 @@ func CheckConsistency(
 //
 //		Path MMR(A) -> MMR(B)
 //		7 in MMR(B) -> []
-//		7 in MMR(B) -> [9]
-//		Path = [9]
-//
-// Noting that the path is empty for node 7 and catenate([], [9]) = [9]
+//		8 in MMR(B) -> [9]
+//		Path = [[], [9]]
 func VerifyConsistency(
 	hasher hash.Hash,
-	proof ConsistencyProof, peakHashesA [][]byte, peakHashesB [][]byte) bool {
+	cp ConsistencyProof, peaksFrom [][]byte, peaksTo [][]byte) (bool, [][]byte, error) {
 
-	// Establish the node indices of the peaks in each mmr state.  The peak
-	// nodes of mmr state A must be at the same indices in mmr B for the update
-	// to be considered consistent. However, if mmr b has additional entries at
-	// all, some or all of those peaks from A will no longer be peaks in B.
-	peakPositionsA := Peaks(proof.MMRSizeA)
-	peakPositionsB := Peaks(proof.MMRSizeB)
-
-	// Require the peak hash list length to match the number of peaks in the mmr
-	// state identified by the MMRSize's.
-	// This also catches the various corner cases where the hashes are incorrect lengths.
-	if len(peakHashesA) != len(peakPositionsA) {
-		return false
-	}
-	if len(peakHashesB) != len(peakPositionsB) {
-		return false
+	// Get the peaks proven by the consistency proof using the provided peaks
+	// for mmr size A
+	proven, err := ConsistentRoots(hasher, cp.MMRSizeA, peaksFrom, cp.Path)
+	if err != nil {
+		return false, nil, err
 	}
 
-	var ok bool
-	var proofLen int
-	iPeakA := 0
-	iPeakB := 0
-	path := proof.Path
+	// If all proven nodes match an accumulator peak for MMR(sizeB) then MMR(sizeA)
+	// is consistent with MMR(sizeB). Because both the peaks and the accumulator
+	// peaks are listed in descending order of height this can be accomplished
+	// with a linear scan.
 
-	posA := peakPositionsA[iPeakA] // pos because it may no longer be a peak in MMR(B)
-	for iPeakA < len(peakHashesA) {
+	ito := 0
+	for _, root := range proven {
 
-		// Each a-peak in A will have as its root, the *first* b-peak in B whose
-		// position is >= the a-peak position. We may not, and typically will
-		// not, consume all the peaks in MMR(B).
-		// Note that where the a-peak is also present as a b-peak, the path will
-		// be empty and that VerifyInclusionPath deals with that case by
-		// requiring the provided leaf matches the provided root. The positions
-		// are naturally equal in both in this case.
-
-		peakB := peakPositionsB[iPeakB] // peak because it is a peak in MMR(B)
-		for posA <= peakB {
-			ok, proofLen = VerifyInclusionPath(
-				proof.MMRSizeB, hasher, peakHashesA[iPeakA], posA-1,
-				path, peakHashesB[iPeakB])
-			if !ok || proofLen > len(path) {
-				return false
-			}
-			// proofLen will be 0 in the case where posA == peakB,  and this works for the case where MMR(A) == MMR(B)
-			path = path[proofLen:]
-			iPeakA++
-			if iPeakA == len(peakHashesA) {
-				break
-			}
-			posA = peakPositionsA[iPeakA]
+		if bytes.Equal(peaksTo[ito], root) {
+			continue
 		}
-		iPeakB++
+
+		// If the root does not match the current peak then it must match the
+		// next one down.
+
+		ito += 1
+
+		if ito >= len(peaksTo) {
+			return false, nil, ErrConsistencyCheck
+		}
+
+		if !bytes.Equal(peaksTo[ito], root) {
+			return false, nil, ErrConsistencyCheck
+		}
 	}
 
-	// Note: only return true if we have verified the complete path.
-	return ok && len(path) == 0
+	// All proven peaks have been matched against the future accumulator. The log
+	// committed by the future accumulator is consistent with the previously
+	// committed log state.
+	return true, proven, nil
 }

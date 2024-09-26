@@ -113,16 +113,22 @@ func TestIndexConsistencyProof(t *testing.T) {
 			wantProof: ConsistencyProof{
 				MMRSizeA: 11,
 				MMRSizeB: 18,
-				Path: [][]byte{
-					// 6 in 18
-					store.mustGet(13),
+				Path: [][][]byte{
+					{
+						// 6 in 18
+						store.mustGet(13),
+					},
 					// 9 in 18
-					store.mustGet(12),
-					store.mustGet(6),
+					{
+						store.mustGet(12),
+						store.mustGet(6),
+					},
 					// 10 in 18
-					store.mustGet(11),
-					store.mustGet(9),
-					store.mustGet(6),
+					{
+						store.mustGet(11),
+						store.mustGet(9),
+						store.mustGet(6),
+					},
 				},
 			},
 			wantPeaksA: [][]byte{
@@ -160,15 +166,15 @@ func TestIndexConsistencyProof(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := IndexConsistencyProof(tt.args.mmrSizeA, tt.args.mmrSizeB, store, hasher)
+			got, err := IndexConsistencyProof(store, tt.args.mmrSizeA, tt.args.mmrSizeB)
 			if (err != nil) != tt.wantProofErr {
 				t.Errorf("IndexConsistencyProof() error = %v, wantErr %v", err, tt.wantProofErr)
 				return
 			}
 
 			if tt.wantProof.Path != nil {
-				fmt.Printf("Path: expect: %s\n", proofPathStringer(tt.wantProof.Path, ", "))
-				fmt.Printf("Path: got   : %s\n", proofPathStringer(got.Path, ", "))
+				fmt.Printf("Path: expect: %s\n", proofPathsStringer(tt.wantProof.Path, ", "))
+				fmt.Printf("Path: got   : %s\n", proofPathsStringer(got.Path, ", "))
 			}
 
 			if tt.wantProof.MMRSizeA != 0 && tt.wantProof.MMRSizeA != got.MMRSizeA {
@@ -205,8 +211,8 @@ func TestIndexConsistencyProof(t *testing.T) {
 				return
 			}
 
-			verified := VerifyConsistency(hasher, got, peakHashesA, peakHashesB)
-
+			verified, _ /*peaksB*/, err := VerifyConsistency(hasher, got, peakHashesA, peakHashesB)
+			require.NoError(t, err)
 			if tt.wantVerify != verified {
 				t.Errorf("VerifyConsistency() = %v, expected %v", tt.wantVerify, verified)
 			}

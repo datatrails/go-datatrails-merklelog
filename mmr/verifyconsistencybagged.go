@@ -24,7 +24,7 @@ func VerifyConsistencyBagged(
 
 	// A zero length path not valid, even in the case where the mmr's are
 	// identical (root a == root b)
-	if len(proof.Path) == 0 {
+	if len(proof.PathBagged) == 0 {
 		return false
 	}
 
@@ -53,7 +53,7 @@ func VerifyConsistencyBagged(
 
 	var ok bool
 	iPeakHashA := 0
-	path := proof.Path
+	path := proof.PathBagged
 	for ; iPeakHashA < len(peakHashesA); iPeakHashA++ {
 
 		// Verify that the peak from A is included in mmr B. As the interior

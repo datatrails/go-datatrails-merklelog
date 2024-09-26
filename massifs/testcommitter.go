@@ -88,14 +88,14 @@ func (c *TestMinimalCommitter) ContextCommitted(ctx context.Context, tenantIdent
 	if mmrSize == 0 {
 		return errors.New("no leaves to seal")
 	}
-	root, err := mmr.GetRoot(mmrSize, &mc, sha256.New())
+	peaks, err := mmr.PeakHashes(&mc, mmrSize)
 	if err != nil {
 		return err
 	}
 
 	state := MMRState{
 		MMRSize:         mmrSize,
-		Root:            root,
+		Peaks:           peaks,
 		Timestamp:       time.Now().UnixMilli(),
 		CommitmentEpoch: c.cfg.CommitmentEpoch,
 		IDTimestamp:     mc.GetLastIdTimestamp(),

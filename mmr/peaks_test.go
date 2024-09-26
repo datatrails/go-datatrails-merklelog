@@ -243,23 +243,89 @@ func TestPeaks2(t *testing.T) {
 		})
 	}
 }
-
 func TestPeakIndex(t *testing.T) {
 	type args struct {
-		peakBits    uint64
-		heightIndex uint64
 	}
 	tests := []struct {
-		name string
-		args args
-		want int
+		mmrIndex    uint64
+		proofLength int
+		expected    int
 	}{
-		// TODO: Add test cases.
+		{0, 0, 0}, // degenerate case
+
+		{2, 1, 0}, // 2 is perfect
+
+		// note the form here is len(accumulator) - 1 - the bit index from the right (least significant) with the zero's removed
+		// except for the perfect peaks which are always 0
+		{3, 1, 2 - 1 - 1},
+		{3, 0, 2 - 1 - 0},
+
+		{6, 2, 0}, // 10. 6 is perfect
+
+		{7, 2, 2 - 1 - 1},
+		{7, 0, 2 - 1 - 0},
+
+		{9, 2, 2 - 1 - 1}, // 110.
+		{9, 1, 2 - 1 - 0},
+
+		{10, 2, 3 - 1 - 2}, // 111
+		{10, 1, 3 - 1 - 1}, // 111
+		{10, 0, 3 - 1 - 0}, // 111
+
+		{14, 3, 0}, // 1000. 14 is perfect
+
+		{15, 3, 2 - 1 - 1}, // 1001
+		{15, 0, 2 - 1 - 0}, // 1001
+
+		{17, 3, 2 - 1 - 1}, // 1010
+		{17, 1, 2 - 1 - 0}, // 1010
+
+		{18, 3, 3 - 1 - 2}, // 1011
+		{18, 1, 3 - 1 - 1}, // 1011
+		{18, 0, 3 - 1 - 0}, // 1011
+
+		{21, 3, 2 - 1 - 1}, // 1100
+		{21, 2, 2 - 1 - 0}, // 1100
+
+		{22, 3, 3 - 1 - 2}, // 1101
+		{22, 2, 3 - 1 - 1}, // 1101
+		{22, 0, 3 - 1 - 0}, // 1101
+
+		{24, 3, 3 - 1 - 2}, // 1110
+		{24, 2, 3 - 1 - 1}, // 1110
+		{24, 1, 3 - 1 - 0}, // 1110
+
+		{25, 3, 4 - 1 - 3}, // 1111
+		{25, 2, 4 - 1 - 2}, // 1111
+		{25, 1, 4 - 1 - 1}, // 1111
+		{25, 0, 4 - 1 - 0}, // 1111
+
+		{30, 4, 0}, // 10000 perfect
+
+		{31, 4, 2 - 1 - 1}, // 10001
+		{31, 0, 2 - 1 - 0},
+
+		{33, 4, 2 - 1 - 1}, // 10010
+		{33, 1, 2 - 1 - 0},
+
+		{34, 4, 3 - 1 - 2}, // 10011
+		{34, 1, 3 - 1 - 1}, // 10011
+		{34, 0, 3 - 1 - 0}, // 10011
+
+		{37, 4, 2 - 1 - 1}, // 10100
+		{37, 2, 2 - 1 - 0}, // 10100
+
+		{38, 4, 3 - 1 - 2}, // 10101
+		{38, 2, 3 - 1 - 1}, // 10101
+		{38, 0, 3 - 1 - 0}, // 10101
+
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := PeakIndex(tt.args.peakBits, tt.args.heightIndex); got != tt.want {
-				t.Errorf("PeakIndex() = %v, want %v", got, tt.want)
+		t.Run(fmt.Sprintf("MMR(%d), proof length %d, expected peak %d", tt.mmrIndex, tt.proofLength, tt.expected), func(t *testing.T) {
+
+			peakBits := LeafCount(tt.mmrIndex + 1)
+			if got := PeakIndex(peakBits, tt.proofLength); got != tt.expected {
+				t.Errorf("PeakIndex() = %v, want %v", got, tt.expected)
 			}
 		})
 	}

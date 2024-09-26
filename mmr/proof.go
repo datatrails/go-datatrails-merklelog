@@ -9,22 +9,20 @@ var (
 	ErrPeakListTooShort = errors.New("the list of peak values is too short")
 )
 
-// GetProofPeakRoot returns the peak hash for sub tree containing the node
-// index.  This is a convenience method to assist with general proof
-// verification. In many contexts, where the leaf count is known, or if the
-// index is known to represent a leaf, it is more efficient and clearer to do
-// this directly.
+// GetProofPeakRoot returns the peak hash for sub tree committing any node.
 //
-// A proof for node 2 would be [5] and the peak list for mmrSize 11 would be
+// This is a convenience for use when the caller does not have the heightIndex naturaly from other operations.
+//
+// A proof for node 2 would be [5], and the peak list for mmrSize 11 would be
 //
 //	[6, 9, 10]
 //
-// To obtain the appropriate root to verify a proof of inclusion for node two call this function with:
+// To obtain the appropriate root to verify a proof of inclusion for node 2 call this function with:
 //
 //	peakHashes: [H(6), H(9), H(10)]
 //	proofLen: 1
 //	mmrSize: 11
-//	mmrIndex: 2
+//	heightIndex: 1
 //
 // The returned peak root will be H(6)
 //
@@ -35,14 +33,17 @@ var (
 //	1     2     5      9
 //	     / \   / \    / \
 //	0   0   1 3   4  7   8 10
-func GetProofPeakRoot(peakHashes [][]byte, proofLen int, mmrSize, mmrIndex uint64) ([]byte, error) {
+func GetProofPeakRoot(mmrSize uint64, mmrIndex uint64, peakHashes [][]byte, proofLen int) ([]byte, error) {
 
 	// for leaf nodes, the peak height index is the proof length - 1, for
 	// generality, to account for interior nodes, we use IndexHeight here.
 	// In contexts where consistency proofs are being generated to check log
 	// extension, typically the returned height from IndexProofPath is
 	// available.
-	peakIndex := GetProofPeakIndex(proofLen, mmrSize, IndexHeight(mmrIndex))
+
+	heightIndex := IndexHeight(mmrIndex)
+
+	peakIndex := GetProofPeakIndex(mmrSize, proofLen, uint8(heightIndex))
 	if peakIndex >= len(peakHashes) {
 		return nil, ErrPeakListTooShort
 	}
@@ -51,31 +52,29 @@ func GetProofPeakRoot(peakHashes [][]byte, proofLen int, mmrSize, mmrIndex uint6
 
 // GetLeafProofRoot gets the appropriate peak root from peakHashes for a leaf proof, See GetProofPeakRoot
 func GetLeafProofRoot(peakHashes [][]byte, proof [][]byte, mmrSize uint64) ([]byte, error) {
-	peakIndex := GetProofPeakIndex(len(proof), mmrSize, 0)
+	peakIndex := GetProofPeakIndex(mmrSize, len(proof), 0)
 	if peakIndex >= len(peakHashes) {
 		return nil, ErrPeakListTooShort
 	}
-	return peakHashes[peakIndex], nil
+	return peakHashes[len(peakHashes)-peakIndex-1], nil
 }
 
 // GetLeafProofRoot gets the compressed accumulator peak index for a leaf proof, See GetProofPeakRoot
-func GetProofPeakIndex(proofLen int, mmrSize uint64, heightIndex uint64) int {
-	peakHeightIndex := uint64(proofLen) + heightIndex
-
+func GetProofPeakIndex(mmrSize uint64, d int, heightIndex uint8) int {
 	// get the index into the accumulator
 	// peakMap is also the leaf count, which is often known to the caller
 	peakMap := PeaksBitmap(mmrSize)
-	return PeakIndex(peakMap, peakHeightIndex)
+	return PeakIndex(peakMap, int(heightIndex)+d)
 }
 
-// IndexProofPath collects the merkle root proof for the local MMR peak containing index i
+// IndexPath collects the merkle proof mmr index i
 //
-// So for the following index tree, and i=15 with mmrSize = 26 we would obtain the path
+// For the following index tree, and i=15 with mmrSize = 26 we would obtain the path
 //
 // [H(16), H(20)]
 //
-// Because the local peak is 21, and given the value for 15, we only need 16 and
-// then 20 to prove the local root.
+// Because the accumulator peak committing 15 is 21, and given the value for 15, we only need 16 and
+// then 20 to verify the proof.
 //
 //	3              14
 //	             /    \
@@ -87,45 +86,92 @@ func GetProofPeakIndex(proofLen int, mmrSize uint64, heightIndex uint64) int {
 //	1     2     5      9     12     17     20     24
 //	     / \   / \    / \   /  \   /  \
 //	0   0   1 3   4  7   8 10  11 15  16 18  19 22  23   25
-func IndexProofPath(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, uint64, uint64, error) {
+func IndexProof(store indexStoreGetter, mmrSize uint64, i uint64) ([][]byte, error) {
 
 	var iSibling uint64
-	var iLocalPeak uint64
 
 	var proof [][]byte
-	heightIndex := IndexHeight(i) // allows for proofs of interior nodes
+	g := IndexHeight(i) // allows for proofs of interior nodes
 
 	for { // iSibling is guaranteed to break the loop
 
-		iLocalPeak = i
+		// The sibling of i is at i +/- 2^(g+1)
+		siblingOffset := uint64((2 << g))
 
-		if IndexHeight(i+1) > heightIndex {
-			iSibling = i - SiblingOffset(heightIndex)
-			i += 1 // move i to parent
+		// If the index after i is heigher, it is the left parent, and i is the right sibling.
+		if IndexHeight(i+1) > g {
+			// The witness to the right sibling is offset behind i
+			iSibling = i - siblingOffset + 1
+
+			// The parent of a right sibling is stored imediately after the sibling
+			i += 1
 		} else {
-			iSibling = i + SiblingOffset(heightIndex)
-			i += 2 << heightIndex // move i to parent
+
+			// The witness to the left sibling is offset ahead of i
+			iSibling = i + siblingOffset - 1
+
+			// The parent of a left sibling is stored imediately after its right sibling
+			i += siblingOffset
 		}
 
+		// When the computed sibling exceedes the range of MMR(C+1),
+		// we have completed the path.
 		if iSibling >= mmrSize {
-			return proof, iLocalPeak, heightIndex, nil
+			return proof, nil
 		}
 
 		value, err := store.Get(iSibling)
 		if err != nil {
-			return nil, 0, heightIndex, err
+			return nil, err
 		}
 		proof = append(proof, value)
 
-		heightIndex += 1
+		// Set g to the height of the next item in the path.
+		g += 1
 	}
 }
 
-// IndexProof is a convenience wrapper for IndexProofPath
-// For circumstances where the peak index and the peak heighIndex are not required by the caller
-func IndexProof(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, error) {
-	proof, _, _, err := IndexProofPath(mmrSize, store, i)
-	return proof, err
+// IndexProofPath returns the mmr indices identifying the witness nodes for mmr index i
+// This method allows tooling to individually audit the proof path node values for a given index.
+func IndexProofPath(mmrSize uint64, i uint64) ([]uint64, error) {
+
+	var iSibling uint64
+
+	var proof []uint64
+	g := IndexHeight(i) // allows for proofs of interior nodes
+
+	for { // iSibling is guaranteed to break the loop
+
+		// The sibling of i is at i +/- 2^(g+1)
+		siblingOffset := uint64((2 << g))
+
+		// If the index after i is heigher, it is the left parent, and i is the right sibling.
+		if IndexHeight(i+1) > g {
+			// The witness to the right sibling is offset behind i
+			iSibling = i - siblingOffset + 1
+
+			// The parent of a right sibling is stored imediately after the sibling
+			i += 1
+		} else {
+
+			// The witness to the left sibling is offset ahead of i
+			iSibling = i + siblingOffset - 1
+
+			// The parent of a left sibling is stored imediately after its right sibling
+			i += siblingOffset
+		}
+
+		// When the computed sibling exceedes the range of MMR(C+1),
+		// we have completed the path.
+		if iSibling >= mmrSize {
+			return proof, nil
+		}
+
+		proof = append(proof, iSibling)
+
+		// Set g to the height of the next item in the path.
+		g += 1
+	}
 }
 
 // LeftPosForHeight returns the position that is 'most left' for the given height.

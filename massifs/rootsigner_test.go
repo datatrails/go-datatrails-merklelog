@@ -43,7 +43,7 @@ func TestRootSigner_Sign1(t *testing.T) {
 				subject: "merklelog-attestor",
 				state: MMRState{
 					MMRSize:   1,
-					Root:      []byte{1},
+					Peaks:     [][]byte{{1}},
 					Timestamp: 1234,
 				},
 			},
@@ -79,7 +79,7 @@ func TestRootSigner_Sign1(t *testing.T) {
 			// This is step 2. Usually we would work out the massif, read that
 			// blob then compute the root from it by passing MMRState.MMRSize to
 			// GetRoot
-			state.Root = tt.args.state.Root
+			state.Peaks = tt.args.state.Peaks
 			err = VerifySignedRoot(
 				rs.cborCodec,
 				dtcose.NewCWTPublicKeyProvider(signed),

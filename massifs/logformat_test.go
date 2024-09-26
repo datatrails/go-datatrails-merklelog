@@ -98,8 +98,8 @@ func TestMassifLogEntries(t *testing.T) {
 				// massif height just determines how many *leaves* are in a full
 				// blob.. and the leaf count is constant for all blobs. The back
 				// fill nodes required for each blobs 'last' leaf varies.
-				firstIndex := mmr.TreeIndex(massifLeafCount * massifIndex)
-				lastIndex := mmr.TreeIndex(massifLeafCount*(massifIndex+1)) - 1
+				firstIndex := mmr.MMRIndex(massifLeafCount * massifIndex)
+				lastIndex := mmr.MMRIndex(massifLeafCount*(massifIndex+1)) - 1
 				expectNodeCount := lastIndex - firstIndex + 1
 
 				// for each massif try a range of log sizes. the sizes can be invalid if the startOffset or endOffset are negative.

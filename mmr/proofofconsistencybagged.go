@@ -34,7 +34,7 @@ func IndexConsistencyProofBagged(
 		if err != nil {
 			return ConsistencyProof{}, err
 		}
-		proof.Path = append(proof.Path, peakProof...)
+		proof.PathBagged = append(proof.PathBagged, peakProof...)
 	}
 	return proof, nil
 }

@@ -39,7 +39,7 @@ func NewGeneratedTestDB(t *testing.T, mmrSize uint64) *testDb {
 	}
 	leafCount := LeafCount(mmrSize)
 	for i := uint64(0); i < leafCount; i++ {
-		_, err := AddHashedLeaf(db, sha256.New(), hashNum(TreeIndex(i)))
+		_, err := AddHashedLeaf(db, sha256.New(), hashNum(MMRIndex(i)))
 		require.NoError(t, err)
 	}
 	return db

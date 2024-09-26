@@ -39,7 +39,7 @@ tasks:
             -v \
             -coverprofile={{.UNITTEST_DIR}}/main.out \
             ./... \
-            2>&1 | go-junit-report -set-exit-code -debug.print-events > {{.UNITTEST_DIR}}/main.xml
+            2>&1
 
           gocov convert {{.UNITTEST_DIR}}/main.out > {{.UNITTEST_DIR}}/coverage.json
 
@@ -62,6 +62,6 @@ tasks:
             -v \
             -coverprofile={{.UNITTEST_DIR}}/main.out \
             ./... \
-            2>&1 | go-junit-report -set-exit-code -debug.print-events > {{.UNITTEST_DIR}}/main.xml
+            2>&1
 
           gocov convert {{.UNITTEST_DIR}}/main.out > {{.UNITTEST_DIR}}/coverage.json

@@ -79,7 +79,7 @@ func TestPeakStack_popArithmetic(t *testing.T) {
 
 			lastLeaf := massifIndex*massifLeafCount + massifLeafCount - 1
 			spurHeightLeaf := mmr.SpurHeightLeaf(lastLeaf)
-			iPeak := mmr.TreeIndex(lastLeaf) + spurHeightLeaf
+			iPeak := mmr.MMRIndex(lastLeaf) + spurHeightLeaf
 
 			stackLen := mmr.LeafMinusSpurSum(massifIndex)
 

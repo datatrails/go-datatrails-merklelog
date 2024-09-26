@@ -140,7 +140,7 @@ func MassifFirstLeaf(massifHeight uint8, massifIndex uint32) uint64 {
 	// And now we can apply TreeIndex to the leaf index. This last is an
 	// iterative call but it is sub linear. Essentially its O(tree height) (not
 	// massif height ofc)
-	return mmr.TreeIndex(leafIndex)
+	return mmr.MMRIndex(leafIndex)
 }
 
 func (ms MassifStart) MarshalBinary() ([]byte, error) {

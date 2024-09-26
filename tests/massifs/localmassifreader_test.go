@@ -7,7 +7,7 @@ package massifs
 import (
 	"context"
 	"crypto/elliptic"
-	"crypto/sha256"
+	"errors"
 	"strings"
 	"testing"
 
@@ -67,7 +67,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 		mmrSize := mc.RangeCount()
 		leafCount := mmr.LeafCount(mmrSize)
 		oldLeafCount := leafCount - leavesBefore
-		mmrSizeOld := mmr.FirstMMRSize(mmr.TreeIndex(oldLeafCount - 1))
+		mmrSizeOld := mmr.FirstMMRSize(mmr.MMRIndex(oldLeafCount - 1))
 		return mmrSizeOld
 	}
 
@@ -93,19 +93,36 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 		copy(logData[i*massifs.LogEntryBytes:i*massifs.LogEntryBytes+8], tamperedBytes)
 	}
 
+	/*
+		sealV0 := func(
+			mc *massifs.MassifContext, mmrSize uint64, tenantIdentity string, massifIndex uint32,
+		) (*cose.CoseSign1Message, massifs.MMRState, error) {
+			root, err := mmr.GetRoot(mmrSize, mc, sha256.New())
+			if err != nil {
+				return nil, massifs.MMRState{}, err
+			}
+			signed, state, err := tc.SignedState(tenantIdentity, uint64(massifIndex), massifs.MMRState{
+				MMRSize: mmrSize, Rootx: root,
+			})
+			// put the root back, because the benefit of the "last good seal"
+			// consistency check does not require access to the log data.
+			state.Rootx = root
+			return signed, state, err
+		}*/
 	seal := func(
 		mc *massifs.MassifContext, mmrSize uint64, tenantIdentity string, massifIndex uint32,
 	) (*cose.CoseSign1Message, massifs.MMRState, error) {
-		root, err := mmr.GetRoot(mmrSize, mc, sha256.New())
+		peaks, err := mmr.PeakHashes(mc, mmrSize)
 		if err != nil {
 			return nil, massifs.MMRState{}, err
 		}
 		signed, state, err := tc.SignedState(tenantIdentity, uint64(massifIndex), massifs.MMRState{
-			MMRSize: mmrSize, Root: root,
+			Version: int(massifs.MMRStateVersion1),
+			MMRSize: mmrSize, Peaks: peaks,
 		})
 		// put the root back, because the benefit of the "last good seal"
 		// consistency check does not require access to the log data.
-		state.Root = root
+		state.Peaks = peaks
 		return signed, state, err
 	}
 
@@ -126,7 +143,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 				mmrSize := mc.RangeCount()
 				leafCount := mmr.LeafCount(mmrSize)
 				sealedLeafCount := leafCount - 8
-				mmrSizeOld := mmr.FirstMMRSize(mmr.TreeIndex(sealedLeafCount - 1))
+				mmrSizeOld := mmr.FirstMMRSize(mmr.MMRIndex(sealedLeafCount - 1))
 				require.GreaterOrEqual(t, mmrSizeOld, mc.Start.FirstIndex)
 
 				return seal(mc, mmrSizeOld, tenantIdentity, massifIndex)
@@ -172,18 +189,20 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 					return nil, massifs.MMRState{}, err
 				}
 
-				root, _ := mmr.GetRoot(state.MMRSize, mc, sha256.New())
-				peaks := mmr.Peaks(mmrSizeOld)
+				peakIndices := mmr.Peaks(mmrSizeOld)
 				// Remember, the peaks are *positions*
+				peaks, err := mmr.PeakHashes(mc, mmrSizeOld)
+				require.NoError(t, err)
 
 				// Note: we take the *last* peak, because it corresponds to the
 				// most recent log entries, but tampering any peak will cause
 				// the verification to fail to fail
-				tamperNode(mc, peaks[len(peaks)-1]-1)
+				tamperNode(mc, peakIndices[len(peakIndices)-1]-1)
 
-				root2, _ := mmr.GetRoot(state.MMRSize, mc, sha256.New())
+				peaks2, err := mmr.PeakHashes(mc, mmrSizeOld)
+				require.NoError(t, err)
 
-				assert.NotEqual(t, root, root2, "tamper did not change the root")
+				assert.NotEqual(t, peaks, peaks2, "tamper did not change the root")
 
 				// Now we can return the seal
 				return msg, state, nil
@@ -314,10 +333,11 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 		wantErr       error
 		wantErrPrefix string
 	}{
+		{name: "tamper after seal", args: args{tenantIdentity: tenantId3InconsistentLogUpdate, massifIndex: 0}, wantErr: mmr.ErrConsistencyCheck},
 		{
 			name:     "local seal inconsistent with remote log",
 			callOpts: []massifs.ReaderOption{massifs.WithTrustedBaseState(fakeGoodState)}, args: args{tenantIdentity: tenantId4RemoteInconsistentWithTrustedSeal, massifIndex: 0},
-			wantErr: massifs.ErrInconsistentState,
+			wantErr: mmr.ErrConsistencyCheck,
 		},
 
 		// provide an invalid public signing key, this simulates a remote log being signed by a different key than the verifier expects
@@ -337,7 +357,6 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 		},
 
 		// see the GetSignedRoot mock above for the rational behind tampering only a peak
-		{name: "tamper after seal", args: args{tenantIdentity: tenantId3InconsistentLogUpdate, massifIndex: 0}, wantErr: massifs.ErrInconsistentState},
 		{name: "seal peak tamper", args: args{tenantIdentity: tenantId2TamperedLogUpdate, massifIndex: 0}, wantErr: massifs.ErrSealVerifyFailed},
 		{name: "seal shorter than massif", args: args{tenantIdentity: tenantId1SealBehindLog, massifIndex: 0}},
 		{name: "happy path", args: args{tenantIdentity: tenantId0, massifIndex: 0}},
@@ -359,7 +378,9 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 					assert.Nil(t, err, "unexpected error")
 				} else if tt.wantErr != nil {
 					assert.NotNil(t, err, "expected error got nil")
-					assert.ErrorIs(t, err, tt.wantErr)
+					if !errors.Is(err, tt.wantErr) {
+						assert.ErrorIs(t, err, tt.wantErr)
+					}
 				} else if tt.wantErrPrefix != "" {
 					assert.NotNil(t, err, "expected error got nil")
 					assert.True(t, strings.HasPrefix(err.Error(), tt.wantErrPrefix))

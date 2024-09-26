@@ -2,6 +2,7 @@ package mmr
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strings"
 )
 
@@ -14,4 +15,13 @@ func proofPathStringer(path [][]byte, sep string) string {
 		spath = append(spath, hex.EncodeToString(it))
 	}
 	return strings.Join(spath, sep)
+}
+func proofPathsStringer(paths [][][]byte, sep string) string {
+
+	spaths := make([]string, len(paths))
+
+	for _, path := range paths {
+		spaths = append(spaths, fmt.Sprintf("[%s]", proofPathStringer(path, sep)))
+	}
+	return strings.Join(spaths, sep)
 }

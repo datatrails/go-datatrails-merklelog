@@ -9,19 +9,35 @@ import (
 	"github.com/veraison/go-cose"
 )
 
+type MMRStateVersion int
+
+const (
+	MMRStateVersion0 MMRStateVersion = iota // Implicit initial release version
+	MMRStateVersion1                        // Version 1
+	// Note: new versions must be monotonicaly assigned.
+)
+
+const (
+	MMRStateVersionCurrent = MMRStateVersion1
+)
+
 // MMRState defines the details we include in our signed commitment to the head log state.
 type MMRState struct {
+
+	// Version is present in all seals from version 1. The initial release was implicity version 0.
+	Version int `cbor:"7,keyasint"`
+
 	// The size of the mmr defines the path to the root (and the full structure
 	// of the tree). Note that all subsequent mmr states whose size is *greater*
 	// than this, can also (efficiently) reproduce this particular root, and
 	// hence can be used to verify 'old' receipts. This property is due to the
 	// strict append only structure of the tree.
 	MMRSize uint64 `cbor:"1,keyasint"`
-	Root    []byte `cbor:"2,keyasint"` //  XXX: DEPRECATING THIS
+	Rootx   []byte `cbor:"2,keyasint"` //  Valid in Version 0 only.
 	// The peak hashes for the mmr identified by MMRSize, this is also the packed accumulator for the tree state.
 	// All inclusion proofs for any node under MMRSize will lead directly to one
 	// of these peaks, or can be extended to do so.
-	Peaks [][]byte `cbor:"7,keyasint"`
+	Peaks [][]byte `cbor:"8,keyasint"` // Version 1+
 	// Timestamp is the unix time (milliseconds) read at the time the root was
 	// signed. Including it allows for the same root to be re-signed.
 	Timestamp int64 `cbor:"3,keyasint"`
@@ -67,7 +83,10 @@ func NewRootSigner(issuer string, cborCodec dtcbor.CBORCodec) RootSigner {
 // Sign1 singes the provides state WARNING: You MUST check the state is
 // consistent with the most recently signed state before publishing this with a
 // datatrails signature.
-func (rs RootSigner) Sign1(coseSigner cose.Signer, keyIdentifier string, publicKey *ecdsa.PublicKey, subject string, state MMRState, external []byte) ([]byte, error) {
+func (rs RootSigner) Sign1(
+	coseSigner cose.Signer,
+	keyIdentifier string, publicKey *ecdsa.PublicKey, subject string,
+	state MMRState, external []byte) ([]byte, error) {
 	payload, err := rs.cborCodec.MarshalCBOR(state)
 	if err != nil {
 		return nil, err
@@ -91,7 +110,8 @@ func (rs RootSigner) Sign1(coseSigner cose.Signer, keyIdentifier string, publicK
 
 	// We purposefully detach the root so that verifiers are forced to obtain it
 	// from the log.
-	state.Root = nil
+	state.Rootx = nil
+	state.Peaks = nil
 	payload, err = rs.cborCodec.MarshalCBOR(state)
 	if err != nil {
 		return nil, err
