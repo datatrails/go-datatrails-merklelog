@@ -27,7 +27,7 @@ import (
 //	1    3     6    10     13      18
 //	    / \  /  \   / \   /  \    /  \
 //	0  1   2 4   5 8   9 11   12 16   17
-func Peaks(mmrSize uint64) []uint64 {
+func PosPeaks(mmrSize uint64) []uint64 {
 	if mmrSize == 0 {
 		return nil
 	}
@@ -60,7 +60,7 @@ func Peaks(mmrSize uint64) []uint64 {
 func PeakHashes(store indexStoreGetter, mmrSize uint64) ([][]byte, error) {
 	// Note: we can implement this directly any time we want, but lets re-use the testing for Peaks
 	var path [][]byte
-	for _, pos := range Peaks(mmrSize) {
+	for _, pos := range PosPeaks(mmrSize) {
 		stored, err := store.Get(pos - 1)
 		if err != nil {
 			return nil, err
@@ -92,7 +92,7 @@ func PeakHashes(store indexStoreGetter, mmrSize uint64) ([][]byte, error) {
 //
 // Example:
 //
-//		peaks = Peaks(18) = [14, 17]
+//		peaks = PosPeaks(18) = [14, 17]
 //		peakBits = LeafCount(18) = 101
 //	 	1 = d = proof len for 6
 //		2 = IndexHeight(6)

@@ -37,7 +37,7 @@ func IndexConsistencyProof(
 	}
 
 	// Find the peaks corresponding to the previous mmr
-	peaksA := Peaks(mmrSizeA)
+	peaksA := PosPeaks(mmrSizeA)
 
 	// Now generate peak proofs against the new mmr size, using the peak indices
 	// as the input indices to prove

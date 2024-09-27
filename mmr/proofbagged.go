@@ -12,7 +12,7 @@ import (
 // The root is defined as the 'bagging' of all peaks, starting with the highest.
 // So its simply a call to BagPeaksRHS for _all_ peaks in the MMR of the provided size.
 func GetRoot(mmrSize uint64, store indexStoreGetter, hasher hash.Hash) ([]byte, error) {
-	peaks := Peaks(mmrSize)
+	peaks := PosPeaks(mmrSize)
 	// The root is ALL the peaks. Note that bagging essentially accumulates them in a binary tree.
 	return BagPeaksRHS(store, hasher, 0, peaks)
 }
@@ -66,7 +66,7 @@ func IndexProofBagged(mmrSize uint64, store indexStoreGetter, hasher hash.Hash, 
 		return nil, err
 	}
 
-	peaks := Peaks(mmrSize)
+	peaks := PosPeaks(mmrSize)
 
 	if rightSibling, err = BagPeaksRHS(store, hasher, iLocalPeak+1, peaks); err != nil {
 		return nil, err

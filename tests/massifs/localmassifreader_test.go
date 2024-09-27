@@ -189,7 +189,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 					return nil, massifs.MMRState{}, err
 				}
 
-				peakIndices := mmr.Peaks(mmrSizeOld)
+				peakIndices := mmr.PosPeaks(mmrSizeOld)
 				// Remember, the peaks are *positions*
 				peaks, err := mmr.PeakHashes(mc, mmrSizeOld)
 				require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 
 				// this time, tamper a peak after the seal, this simulates the
 				// case where the extension is inconsistent with the seal.
-				peaks := mmr.Peaks(mc.RangeCount())
+				peaks := mmr.PosPeaks(mc.RangeCount())
 
 				// Note: we take the *last* peak, because it corresponds to the
 				// most recent log entries. In this case we want the fresh
@@ -275,7 +275,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 
 						mmrSizeOld := sizeBeforeLeaves(mc, 8)
 						require.GreaterOrEqual(t, mmrSizeOld, mc.Start.FirstIndex)
-						peaks := mmr.Peaks(mmrSizeOld)
+						peaks := mmr.PosPeaks(mmrSizeOld)
 						// remember, the peaks are *positions*
 						tamperNode(mc, peaks[len(peaks)-1]-1)
 
@@ -283,7 +283,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 						// tamper *after* the seal
 						// this time, tamper a peak after the seal, this simulates the
 						// case where the extension is inconsistent with the seal.
-						peaks := mmr.Peaks(mc.RangeCount())
+						peaks := mmr.PosPeaks(mc.RangeCount())
 						// Remember, the peaks are *positions*
 						tamperNode(mc, peaks[len(peaks)-1]-1)
 
@@ -305,7 +305,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 	require.NoError(t, err)
 	mmrSizeOld := sizeBeforeLeaves(mc, 8)
 	require.GreaterOrEqual(t, mmrSizeOld, mc.Start.FirstIndex)
-	peaks := mmr.Peaks(mmrSizeOld)
+	peaks := mmr.PosPeaks(mmrSizeOld)
 	// remember, the peaks are *positions*
 	tamperNode(mc, peaks[len(peaks)-1]-1)
 

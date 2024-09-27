@@ -387,7 +387,7 @@ func TestVerify(t *testing.T) {
 				assert.Equal(t, tt.expectProofNodes.iLocalPeak, iLocalPeak, "local peak incorrect")
 				assert.Equal(t, getNodes(db, tt.expectProofNodes.local...), localPath)
 
-				peaks := Peaks(tt.args.mmrSize)
+				peaks := PosPeaks(tt.args.mmrSize)
 
 				peakBits := PeaksBitmap(tt.args.mmrSize)
 

@@ -68,7 +68,7 @@ func VerifyFirstInclusionPathBagged(
 	mmrSize uint64, hasher hash.Hash, leafHash []byte, iNode uint64, proof [][]byte, root []byte,
 ) (bool, int) {
 
-	peaks := Peaks(mmrSize)
+	peaks := PosPeaks(mmrSize)
 	peakMap := map[uint64]bool{}
 
 	// Deal with the degenerate case where iNode is a perfect peak. The proof will be nil.

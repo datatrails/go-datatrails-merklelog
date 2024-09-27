@@ -295,7 +295,7 @@ func TestIndexConsistencyProofBagged(t *testing.T) {
 				return
 			}
 
-			iPeaks := Peaks(got.MMRSizeA)
+			iPeaks := PosPeaks(got.MMRSizeA)
 			peakHashesA, err := PeakBagRHS(store, hasher, 0, iPeaks)
 			if err != nil {
 				t.Errorf("PeakBagRHS: %v", err)

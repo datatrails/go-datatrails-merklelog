@@ -11,7 +11,7 @@ var (
 )
 
 func ConsistentRoots(hasher hash.Hash, fromSize uint64, accumulatorfrom [][]byte, proofs [][][]byte) ([][]byte, error) {
-	frompeaks := Peaks(fromSize)
+	frompeaks := PosPeaks(fromSize)
 
 	if len(frompeaks) != len(proofs) {
 		return nil, ErrAccumulatorProofLen
@@ -21,7 +21,7 @@ func ConsistentRoots(hasher hash.Hash, fromSize uint64, accumulatorfrom [][]byte
 
 	for iacc := 0; iacc < len(accumulatorfrom); iacc++ {
 		// remembering that peaks are 1 based (for now)
-		root := IncludedRoot(hasher, frompeaks[iacc] - 1, accumulatorfrom[iacc], proofs[iacc])
+		root := IncludedRoot(hasher, frompeaks[iacc]-1, accumulatorfrom[iacc], proofs[iacc])
 		// The nature of MMR's is that many nodes are committed by the
 		// same accumulator peak, and that peak changes with
 		// low frequency.

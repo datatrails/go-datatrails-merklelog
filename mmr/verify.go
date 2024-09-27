@@ -2,8 +2,39 @@ package mmr
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"hash"
 )
+
+var (
+	ErrVerifyInclusionFailed = errors.New("verify inclusion failed")
+)
+
+func VerifyInclusion(
+	store indexStoreGetter, hasher hash.Hash, mmrSize uint64, leafHash []byte, iNode uint64, proof [][]byte,
+) (bool, error) {
+
+	peaks, err := PeakHashes(store, mmrSize)
+	if err != nil {
+		return false, err
+	}
+
+	// Get the index of the peak commiting the proven element
+	ipeak := PeakIndex(LeafCount(mmrSize), len(proof))
+
+	if ipeak >= len(peaks) {
+		return false, fmt.Errorf(
+			"%w: accumulator index for proof out of range for the provided mmr size", ErrVerifyInclusionFailed)
+	}
+
+	root := IncludedRoot(hasher, iNode, leafHash, proof)
+	if !bytes.Equal(root, peaks[ipeak]) {
+		return false, fmt.Errorf(
+			"%w: proven root not present in the accumulator", ErrVerifyInclusionFailed)
+	}
+	return true, nil
+}
 
 // VerifyInclusionPath returns true if the leafHash combined with path, reproduces the provided root
 //

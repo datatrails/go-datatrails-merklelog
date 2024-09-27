@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPeaks(t *testing.T) {
+func TestPosPeaks(t *testing.T) {
 	type args struct {
 		mmrSize uint64
 	}
@@ -30,8 +30,8 @@ func TestPeaks(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Peaks(tt.args.mmrSize); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Peaks() = %v, want %v", got, tt.want)
+			if got := PosPeaks(tt.args.mmrSize); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PosPeaks() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -66,8 +66,8 @@ func TestPeaksKAT_MMR39(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%d", tt.mmrSize), func(t *testing.T) {
-			if got := Peaks(tt.mmrSize); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Peaks() = %v, want %v", got, tt.want)
+			if got := PosPeaks(tt.mmrSize); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PosPeaks() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -236,7 +236,7 @@ func TestPeaks2(t *testing.T) {
 		t.Run(fmt.Sprintf("Peaks2(%d)", pos), func(t *testing.T) {
 			fmt.Printf("Peaks2(mmrSize: %d):", pos)
 			peaks := PeaksOld(pos)
-			peaks2 := Peaks(pos)
+			peaks2 := PosPeaks(pos)
 			assert.Equal(t, peaks, peaks2)
 			fmt.Printf(" %v", peaks)
 			fmt.Printf("\n")

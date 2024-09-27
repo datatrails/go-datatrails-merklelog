@@ -49,7 +49,7 @@ func VerifyConsistencyBagged(
 	// peak nodes must be at the same indices in mmr B for the update to be
 	// considered consistent. However, if mmr b has additional entries at all,
 	// some or all of those peaks from A will no longer be peaks in B.
-	peakPositions := Peaks(proof.MMRSizeA)
+	peakPositions := PosPeaks(proof.MMRSizeA)
 
 	var ok bool
 	iPeakHashA := 0
@@ -83,7 +83,7 @@ func CheckConsistencyBagged(
 	store indexStoreGetter, hasher hash.Hash,
 	cp ConsistencyProof, rootA []byte) (bool, []byte, error) {
 
-	iPeaks := Peaks(cp.MMRSizeA)
+	iPeaks := PosPeaks(cp.MMRSizeA)
 
 	// logger.Sugar.Infof(".... PeakBagRHS: %v", iPeaks)
 	peakHashesA, err := PeakBagRHS(store, hasher, 0, iPeaks)
