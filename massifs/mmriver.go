@@ -184,7 +184,7 @@ func (b *ReceiptBuilder) BuildReceipt(
 		return nil, fmt.Errorf("failed to read seal: %s, %v", sealContext.BlobPath, err)
 	}
 
-	proof, err := mmr.InclusionProof(&massif, state.MMRSize, mmrIndex)
+	proof, err := mmr.InclusionProof(&massif, state.MMRSize-1, mmrIndex)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to generating inclusion proof: %d in MMR(%d), %v", mmrIndex, state.MMRSize, err)

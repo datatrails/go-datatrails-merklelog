@@ -91,6 +91,11 @@ func InclusionProof(store indexStoreGetter, mmrLastIndex uint64, i uint64) ([][]
 	var iSibling uint64
 
 	var proof [][]byte
+
+	if i > mmrLastIndex {
+		return nil, errors.New("index out of range")
+	}
+
 	g := IndexHeight(i) // allows for proofs of interior nodes
 
 	for { // iSibling is guaranteed to break the loop
