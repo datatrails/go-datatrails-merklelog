@@ -88,7 +88,7 @@ func (c *TestMinimalCommitter) ContextCommitted(ctx context.Context, tenantIdent
 	if mmrSize == 0 {
 		return errors.New("no leaves to seal")
 	}
-	peaks, err := mmr.PeakHashes(&mc, mmrSize)
+	peaks, err := mmr.PeakHashes(&mc, mmrSize-1)
 	if err != nil {
 		return err
 	}

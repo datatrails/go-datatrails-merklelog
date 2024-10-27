@@ -40,7 +40,7 @@ func PeaksOld(mmrSize uint64) []uint64 {
 	}
 
 	// The top peak is always the left most and, when counting from 1, will have all binary '1's
-	top := TopPeak(mmrSize)
+	top := TopPeak(mmrSize-1) + 1
 
 	peaks := []uint64{top}
 	peak := top

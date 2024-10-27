@@ -35,7 +35,7 @@ func TestVerifyLeavesIn38Bagged(t *testing.T) {
 		// for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
 		iNode := MMRIndex(iLeaf)
 
-		proof, err := IndexProofBagged(mmrSize, db, hasher, iNode)
+		proof, err := InclusionProofBagged(mmrSize, db, hasher, iNode)
 		require.NoError(t, err)
 
 		nodeHash, err := db.Get(iNode)
@@ -67,7 +67,7 @@ func TestVerify38Bagged(t *testing.T) {
 		// for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
 		// iNode := MMRIndex(iLeaf)
 
-		proof, err := IndexProofBagged(mmrSize, db, hasher, iNode)
+		proof, err := InclusionProofBagged(mmrSize, db, hasher, iNode)
 		require.NoError(t, err)
 
 		nodeHash, err := db.Get(iNode)
@@ -100,7 +100,7 @@ func TestVerifyPerfectRootsBagged(t *testing.T) {
 		}
 
 		iNode := mmrSize - 1
-		proof, err := IndexProofBagged(mmrSize, db, hasher, iNode)
+		proof, err := InclusionProofBagged(mmrSize, db, hasher, iNode)
 		require.NoError(t, err)
 
 		nodeHash, err := db.Get(iNode)
@@ -123,7 +123,7 @@ func TestVerifyIndex30InSize63Bagged(t *testing.T) {
 	db := NewGeneratedTestDB(t, 63)
 	root, err := GetRoot(63, db, hasher)
 	require.NoError(t, err)
-	peakProof, err := IndexProofBagged(63, db, hasher, 30)
+	peakProof, err := InclusionProofBagged(63, db, hasher, 30)
 	require.NoError(t, err)
 	peakHash := db.mustGet(30)
 	ok := VerifyInclusionBagged(63, hasher, peakHash, 30, peakProof, root)
@@ -162,7 +162,7 @@ func TestReVerify38ForAllSizesBagged(t *testing.T) {
 			root, err := GetRoot(jMMRSize, db, hasher)
 			require.NoError(t, err)
 			// Get the proof for *** iLeaf's node ***
-			proof, err := IndexProofBagged(jMMRSize, db, hasher, iNode)
+			proof, err := InclusionProofBagged(jMMRSize, db, hasher, iNode)
 			require.NoError(t, err)
 			if proof == nil {
 				// This is the iLeaf == 0 && mmrSize == 1 case which is
@@ -200,19 +200,19 @@ func TestVerify(t *testing.T) {
 	}
 
 	getProofBagged := func(mmrSize uint64, i uint64) [][]byte {
-		proof, err := IndexProofBagged(mmrSize, db, hasher, i)
+		proof, err := InclusionProofBagged(mmrSize, db, hasher, i)
 		require.NoError(t, err)
 		if mmrSize == 1 && proof != nil {
-			t.Errorf("IndexProof() err: %v", errors.New("mmr size 1 should return nil proof"))
+			t.Errorf("InclusionProof() err: %v", errors.New("mmr size 1 should return nil proof"))
 			return nil
 		}
 		return proof
 	}
 	getProof := func(mmrSize uint64, i uint64) [][]byte {
-		proof, err := IndexProof(db, mmrSize-1, i)
+		proof, err := InclusionProof(db, mmrSize-1, i)
 		require.NoError(t, err)
 		if mmrSize == 1 && proof != nil {
-			t.Errorf("IndexProof() err: %v", errors.New("mmr size 1 should return nil proof"))
+			t.Errorf("InclusionProof() err: %v", errors.New("mmr size 1 should return nil proof"))
 			return nil
 		}
 		return proof
@@ -240,7 +240,7 @@ func TestVerify(t *testing.T) {
 		// peakMap is also the leaf count, which is often also known
 		peakMap := LeafCount(mmrSize)
 		peakIndex := PeakIndex(peakMap, d)
-		peakHashes, err := PeakHashes(db, mmrSize)
+		peakHashes, err := PeakHashes(db, mmrSize-1)
 		require.Less(t, peakIndex, len(peakHashes))
 		require.NoError(t, err)
 		root := peakHashes[peakIndex]
@@ -380,7 +380,7 @@ func TestVerify(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectProofNodes != nil {
-				localPath, iLocalPeak, err := IndexProofLocal(
+				localPath, iLocalPeak, err := InclusionProofLocal(
 					tt.args.mmrSize, db, tt.args.mmrIndex)
 				localHeightIndex := len(localPath)
 				require.NoError(t, err)

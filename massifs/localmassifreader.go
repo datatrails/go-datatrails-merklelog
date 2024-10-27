@@ -216,7 +216,7 @@ func (r *LocalReader) ReplaceVerifiedContext(
 	// Note: ensure that the root is *never* written to disc or available in the
 	// cached copy of the seal, so that it always has to be recomputed.
 	state := vc.MMRState
-	state.Rootx = nil
+	state.LegacySealRoot = nil
 	state.Peaks = nil
 
 	return r.cache.ReplaceSeal(sealFilename, vc.Start.MassifIndex, &SealedState{

@@ -30,7 +30,7 @@ func IndexConsistencyProofBagged(
 	// Now generate peak proofs against the new mmr size, using the peak indices
 	// as the input indices to prove
 	for _, iPeakA := range peaksA {
-		peakProof, err := IndexProofBagged(mmrSizeB, store, hasher, iPeakA-1)
+		peakProof, err := InclusionProofBagged(mmrSizeB, store, hasher, iPeakA-1)
 		if err != nil {
 			return ConsistencyProof{}, err
 		}

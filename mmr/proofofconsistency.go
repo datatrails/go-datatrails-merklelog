@@ -29,21 +29,21 @@ type ConsistencyProof struct {
 // and MMR(B) for each "old" peak in MMR(A) we show there is a path to a "new"
 // or "same" peak in MMR(B)
 func IndexConsistencyProof(
-	store indexStoreGetter, mmrSizeA, mmrSizeB uint64,
+	store indexStoreGetter, mmrIndexA, mmrIndexB uint64,
 ) (ConsistencyProof, error) {
 	proof := ConsistencyProof{
-		MMRSizeA: mmrSizeA,
-		MMRSizeB: mmrSizeB,
+		MMRSizeA: mmrIndexA + 1,
+		MMRSizeB: mmrIndexB + 1,
 	}
 
 	// Find the peaks corresponding to the previous mmr
-	peaksA := PosPeaks(mmrSizeA)
+	peaksA := Peaks(mmrIndexA)
 
 	// Now generate peak proofs against the new mmr size, using the peak indices
 	// as the input indices to prove
 	for _, iPeakA := range peaksA {
 
-		peakProof, err := IndexProof(store, mmrSizeB, iPeakA-1)
+		peakProof, err := InclusionProof(store, mmrIndexB, iPeakA)
 		if err != nil {
 			return ConsistencyProof{}, err
 		}

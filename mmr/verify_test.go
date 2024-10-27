@@ -26,13 +26,13 @@ func TestVerifyLeavesIn38(t *testing.T) {
 			// Verify each leaf in all complete mmr sizes up to the size of the canonical mmr
 			// for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
 
-			proof, err := IndexProof(db, s, mmrIndex)
+			proof, err := InclusionProof(db, s-1, mmrIndex)
 			require.NoError(t, err)
 
 			nodeHash, err := db.Get(mmrIndex)
 			require.NoError(t, err)
 
-			accumulator, err := PeakHashes(db, s)
+			accumulator, err := PeakHashes(db, s-1)
 			require.NoError(t, err)
 			iacc := PeakIndex(LeafCount(s), len(proof))
 			require.Less(t, iacc, len(accumulator))

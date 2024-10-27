@@ -9,7 +9,7 @@ import "hash"
 // VerifyInclusionOld returns true if the provided proof demonstrates inclusion of
 // nodeHash at position iLeaf+1
 //
-// proof and root should be obtained via IndexProof and GetRoot respectively.
+// proof and root should be obtained via InclusionProof and GetRoot respectively.
 //
 // Remembering that the proof layout is this:
 //

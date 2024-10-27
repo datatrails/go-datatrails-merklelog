@@ -6,7 +6,7 @@ import "github.com/datatrails/go-datatrails-merklelog/mmr"
 
 // PeakStackMap builds a map from mmr indices to peak stack entries
 // massifHeight is the 1 based height (not the height index)
-func PeakStackMap(massifHeight uint8, mmrSize uint64) map[uint64]int {
+func PeakStackMap(massifHeight uint8, mmrIndex uint64) map[uint64]int {
 
 	if massifHeight == 0 {
 		return nil
@@ -15,12 +15,12 @@ func PeakStackMap(massifHeight uint8, mmrSize uint64) map[uint64]int {
 	// XXX:TODO there is likely a more efficient way to do this using
 	// PeaksBitmap or a variation of it, but this isn't a terribly hot path.
 	stackMap := map[uint64]int{}
-	iPeaks := mmr.PosPeaks(mmrSize)
+	iPeaks := mmr.Peaks(mmrIndex)
 	for i, ip := range iPeaks {
-		if mmr.PosHeight(ip) < uint64(massifHeight-1) {
+		if mmr.IndexHeight(ip) < uint64(massifHeight-1) {
 			continue
 		}
-		stackMap[ip-1] = i
+		stackMap[ip] = i
 	}
 
 	return stackMap

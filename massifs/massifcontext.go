@@ -110,7 +110,7 @@ func (mc *MassifContext) CopyPeakStack() map[uint64]int {
 // with how GetRoot accesses the store. The default configuration works only for
 // how leaf addition accesses the stack.
 func (mc *MassifContext) CreatePeakStackMap() error {
-	mc.peakStackMap = PeakStackMap(mc.Start.MassifHeight, mc.Start.FirstIndex+1)
+	mc.peakStackMap = PeakStackMap(mc.Start.MassifHeight, mc.Start.FirstIndex)
 	if mc.peakStackMap == nil {
 		return fmt.Errorf("invalid massif height or first index in start record")
 	}
@@ -438,6 +438,7 @@ func (mc *MassifContext) CheckConsistency(
 		return nil, ErrStateRootMissing
 	}
 
+	// Note: this can never be 0, because we always create a new massif with at least one node
 	mmrSizeCurrent := mc.RangeCount()
 
 	if mmrSizeCurrent < baseState.MMRSize {

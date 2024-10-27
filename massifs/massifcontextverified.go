@@ -174,7 +174,7 @@ func (mc *MassifContext) verifyContext(
 	// get the peaks from the local store, we are checking the store against the
 	// latest additions. as we verify the signature below, any changes to the
 	// store will be caught.
-	state.Peaks, err = mmr.PeakHashes(mc, state.MMRSize)
+	state.Peaks, err = mmr.PeakHashes(mc, state.MMRSize-1)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (mc *MassifContext) verifyContext(
 	// Otherwise we can get caught out by the store tampered after the seal was
 	// created. Of course the seal itself could have been replaced, but at that
 	// point the only defense is an indpendent replica.
-	err = VerifySignedRoot(
+	err = VerifySignedCheckPoint(
 		*options.codec, pubKeyProvider, msg, state, nil,
 	)
 	if err != nil {

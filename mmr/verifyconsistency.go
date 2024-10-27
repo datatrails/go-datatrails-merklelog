@@ -21,13 +21,13 @@ func CheckConsistency(
 	mmrSizeA, mmrSizeB uint64, peakHashesA [][]byte) (bool, [][]byte, error) {
 
 	// Obtain the proofs from the current store
-	cp, err := IndexConsistencyProof(store, mmrSizeA, mmrSizeB)
+	cp, err := IndexConsistencyProof(store, mmrSizeA-1, mmrSizeB-1)
 	if err != nil {
 		return false, nil, err
 	}
 
 	// Obtain the expected resulting peaks from the current store
-	peakHashesB, err := PeakHashes(store, cp.MMRSizeB)
+	peakHashesB, err := PeakHashes(store, cp.MMRSizeB-1)
 	if err != nil {
 		return false, nil, err
 	}
@@ -60,7 +60,7 @@ func VerifyConsistency(
 
 	// Get the peaks proven by the consistency proof using the provided peaks
 	// for mmr size A
-	proven, err := ConsistentRoots(hasher, cp.MMRSizeA, peaksFrom, cp.Path)
+	proven, err := ConsistentRoots(hasher, cp.MMRSizeA-1, peaksFrom, cp.Path)
 	if err != nil {
 		return false, nil, err
 	}
@@ -91,8 +91,15 @@ func VerifyConsistency(
 		}
 	}
 
-	// All proven peaks have been matched against the future accumulator. The log
-	// committed by the future accumulator is consistent with the previously
-	// committed log state.
-	return true, proven, nil
+	// the accumulator consists of the proven peaks plus any new peaks in peaksTo.
+	// In the draft these new peaks are the 'right-peaks' of the consistency proof.
+	// Here, as ConsistentRoots requires that the peak count for the provided ifrom
+	// matches the number of peaks in peaksFrom, simply returning peaksTo is safe.
+	// Even in the corner case where proven is empty.
+	//
+	// We could do
+	//  proven = append(proven, peaksTo[len(proven):]...)
+	//
+	// But that would be completely redundant given the loop above.
+	return true, peaksTo, nil
 }

@@ -2,6 +2,7 @@ package mmr
 
 import (
 	"fmt"
+	"math/bits"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -120,6 +121,8 @@ func TestLeafMinusSpurSum(t *testing.T) {
 		t.Run(fmt.Sprintf("%d -> %d", iLeaf, want), func(t *testing.T) {
 			sum := LeafMinusSpurSum(uint64(iLeaf))
 			assert.Equal(t, sum, want)
+			sum2 := uint64(bits.OnesCount64(uint64(iLeaf)))
+			assert.Equal(t, sum, sum2)
 
 			// Test that the stack like property is maintained
 			top := uint64(0)

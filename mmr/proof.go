@@ -38,7 +38,7 @@ func GetProofPeakRoot(mmrSize uint64, mmrIndex uint64, peakHashes [][]byte, proo
 	// for leaf nodes, the peak height index is the proof length - 1, for
 	// generality, to account for interior nodes, we use IndexHeight here.
 	// In contexts where consistency proofs are being generated to check log
-	// extension, typically the returned height from IndexProofPath is
+	// extension, typically the returned height from InclusionProofPath is
 	// available.
 
 	heightIndex := IndexHeight(mmrIndex)
@@ -86,7 +86,7 @@ func GetProofPeakIndex(mmrSize uint64, d int, heightIndex uint8) int {
 //	1     2     5      9     12     17     20     24
 //	     / \   / \    / \   /  \   /  \
 //	0   0   1 3   4  7   8 10  11 15  16 18  19 22  23   25
-func IndexProof(store indexStoreGetter, mmrSize uint64, i uint64) ([][]byte, error) {
+func InclusionProof(store indexStoreGetter, mmrLastIndex uint64, i uint64) ([][]byte, error) {
 
 	var iSibling uint64
 
@@ -116,7 +116,7 @@ func IndexProof(store indexStoreGetter, mmrSize uint64, i uint64) ([][]byte, err
 
 		// When the computed sibling exceedes the range of MMR(C+1),
 		// we have completed the path.
-		if iSibling >= mmrSize {
+		if iSibling > mmrLastIndex {
 			return proof, nil
 		}
 
@@ -131,9 +131,10 @@ func IndexProof(store indexStoreGetter, mmrSize uint64, i uint64) ([][]byte, err
 	}
 }
 
-// IndexProofPath returns the mmr indices identifying the witness nodes for mmr index i
+//	returns the mmr indices identifying the witness nodes for mmr index i
+//
 // This method allows tooling to individually audit the proof path node values for a given index.
-func IndexProofPath(mmrSize uint64, i uint64) ([]uint64, error) {
+func InclusionProofPath(mmrLastIndex uint64, i uint64) ([]uint64, error) {
 
 	var iSibling uint64
 
@@ -163,7 +164,7 @@ func IndexProofPath(mmrSize uint64, i uint64) ([]uint64, error) {
 
 		// When the computed sibling exceedes the range of MMR(C+1),
 		// we have completed the path.
-		if iSibling >= mmrSize {
+		if iSibling > mmrLastIndex {
 			return proof, nil
 		}
 

@@ -15,7 +15,7 @@ func VerifyInclusion(
 	store indexStoreGetter, hasher hash.Hash, mmrSize uint64, leafHash []byte, iNode uint64, proof [][]byte,
 ) (bool, error) {
 
-	peaks, err := PeakHashes(store, mmrSize)
+	peaks, err := PeakHashes(store, mmrSize-1)
 	if err != nil {
 		return false, err
 	}

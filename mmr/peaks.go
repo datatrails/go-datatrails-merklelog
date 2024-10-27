@@ -4,33 +4,28 @@ import (
 	"math/bits"
 )
 
-// Peaks returns the array of mountain peaks in the MMR. This is completely
-// deterministic given a valid mmr size. If the mmr size is invalid, this
-// function returns nil.
+// Peaks returns the array of mountain peak indices in the MMR.
 //
-// It is guaranteed that the peaks are listed in ascending order of position
-// value.  The highest peak has the lowest position and is listed first. This is
-// a consequence of the fact that the 'little' 'down range' peaks can only appear
+// This is completely deterministic given a complete mmr index.
+// If the mmr index is not complete, or is otherwise invalid, is invalid, this function returns nil.
+//
+// The peaks are listed in ascending order of mmr index value.
+// The highest peak has the lowest index and is listed first. This is a
+// consequence of the fact that the 'little' 'down range' peaks can only appear
 // to the 'right' of the first perfect peak, and so on recursively.
 //
-// Note that as a matter of implementation convenience and efficiency the peaks
-// are returned as *one based positions*
+// Given the example below, which has an mmrSize of 10, the peaks are [6, 9]:
 //
-// So given the example below, which has an mmrSize of 17, the peaks are [15, 18]
-//
-//	3            15
-//	           /    \
-//	          /      \
-//	         /        \
-//	2       7          14
-//	      /   \       /   \
-//	1    3     6    10     13      18
-//	    / \  /  \   / \   /  \    /  \
-//	0  1   2 4   5 8   9 11   12 16   17
-func PosPeaks(mmrSize uint64) []uint64 {
-	if mmrSize == 0 {
-		return nil
-	}
+//	2        6
+//	       /   \
+//	1     2     5      9
+//	     / \   / \    / \
+//	0   0   1 3   4  7   8
+func Peaks(mmrIndex uint64) []uint64 {
+
+	// The peaks algorithm works using the binary properties of the mmr *positions*
+
+	mmrSize := mmrIndex + 1
 
 	// catch invalid range, where siblings exist but no parent exists
 	if PosHeight(mmrSize+1) > PosHeight(mmrSize) {
@@ -44,24 +39,37 @@ func PosPeaks(mmrSize uint64) []uint64 {
 		// This next step computes the ^2 floor of the bits in mmrSize, which
 		// picks out the highest peak (and also left most) remaining peak in
 		// mmrSize (See TopPeak)
-		peakSize := TopPeak(mmrSize)
+		peakSize := TopPeak(mmrSize-1) + 1 // + 1 to recover position form
 
 		// Because we *subtract* the computed peak size from mmrSize, we need to
 		// recover the actual peak position. The arithmetic all works out so we
 		// just accumulate the peakSizes as we go, and the result is always the
 		// peak value against the original mmrSize we were given.
 		peak = peak + peakSize
-		peaks = append(peaks, peak)
+		peaks = append(peaks, peak-1)
 		mmrSize -= peakSize
 	}
 	return peaks
 }
 
-func PeakHashes(store indexStoreGetter, mmrSize uint64) ([][]byte, error) {
+// PosPeaks is a depricated version of peaks which returns an array of mmr positions rather than indices.
+func PosPeaks(mmrSize uint64) []uint64 {
+
+	peaks := Peaks(mmrSize - 1)
+	if peaks == nil {
+		return nil
+	}
+	for i, p := range peaks {
+		peaks[i] = p + 1
+	}
+	return peaks
+}
+
+func PeakHashes(store indexStoreGetter, mmrIndex uint64) ([][]byte, error) {
 	// Note: we can implement this directly any time we want, but lets re-use the testing for Peaks
 	var path [][]byte
-	for _, pos := range PosPeaks(mmrSize) {
-		stored, err := store.Get(pos - 1)
+	for _, i := range Peaks(mmrIndex) {
+		stored, err := store.Get(i)
 		if err != nil {
 			return nil, err
 		}
@@ -139,40 +147,40 @@ func PeakIndex(leafCount uint64, d int) int {
 	return int(bits.OnesCount64(leafCount)) - n
 }
 
-// TopPeak returns the smallest, leftmost, peak containing *or equal to* pos
+// TopPeak returns the smallest, leftmost, peak containing *or equal to* i
 //
 // This is essentially a ^2 *floor* function for the accumulation of bits:
 //
-//	TopPeak(1) = TopPeak(2) = 1
-//	TopPeak(2) = TopPeak(3) = TopPeak(4) = TopPeak(5) = TopPeak(6) = 3
-//	TopPeak(7) = 7
+//	TopPeak(0) = TopPeak(1) = 0
+//	TopPeak(1) = TopPeak(2) = TopPeak(3) = TopPeak(4) = TopPeak(5) = 2
+//	TopPeak(6) = 6
 //
-//	2       7
+//	2       6
 //	      /   \
-//	1    3     6    10
+//	1    2     5     9
 //	    / \  /  \   / \
-//	0  1   2 4   5 8   9 11
-func TopPeak(pos uint64) uint64 {
+//	0  0   1 3   4 7   8 10
+func TopPeak(i uint64) uint64 {
 
-	// This works by working out the next peak up then subtracting 1, which is a
+	// This works by working out the next peak *position* up then subtracting 1, which is a
 	// flooring function for the bits over the current peak
-	return 1<<(BitLength64(pos+1)-1) - 1
+	return 1<<(BitLength64(i+2)-1) - 2
 }
 
 // TopHeight returns the index height of the largest perfect peak contained in, or exactly, pos
 // This is essentially a ^2 *floor* function for the accumulation of bits:
 //
-//	TopHeight(1) = TopHeight(2) = 0
-//	PeakFloor(2) = PeakFloor(3) = PeakFloor(4) = PeakFloor(5) = PeakFloor(6) = 1
-//	PeakFloor(7) = 2
+//	TopHeight(0) = TopHeight(1) = 0
+//	TopHeight(1) = TopHeight(2) = TopHeight(3) = TopHeight(4) = TopHeight(5) = 1
+//	TopHeight(6) = 2
 //
-//	2       7
+//	2       6
 //	      /   \
-//	1    3     6    10
+//	1    2     5     9
 //	    / \  /  \   / \
-//	0  1   2 4   5 8   9 11
-func TopHeight(pos uint64) uint64 {
-	return BitLength64(pos+1) - 1
+//	0  0   1 3   4 7   8 10
+func TopHeight(i uint64) uint64 {
+	return BitLength64(i+2) - 2
 }
 
 // PeaksBitmap returns a bit mask where a 1 corresponds to a peak and the position

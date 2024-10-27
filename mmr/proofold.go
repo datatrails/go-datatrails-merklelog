@@ -4,8 +4,8 @@ package mmr
 // will delete this file A reason to keep it around is that testing may benefit
 // from having multiple implementations of key algorithms
 
-// IndexProofLocalOld is depreciated and retained only for testing
-// See IndexProofLocal instead
+// InclusionProofLocalOld is depreciated and retained only for testing
+// See InclusionProofLocal instead
 //
 // collects the merkle root proof for the local MMR peak containing index i
 //
@@ -26,7 +26,7 @@ package mmr
 //	1     2     5      9     12     17     20     24
 //	     / \   / \    / \   /  \   /  \
 //	0   0   1 3   4  7   8 10  11 15  16 18  19 22  23   25
-func IndexProofLocalOld(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, uint64, error) {
+func InclusionProofLocalOld(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, uint64, error) {
 
 	var proof [][]byte
 	height := IndexHeight(i) // allows for proofs of interior nodes

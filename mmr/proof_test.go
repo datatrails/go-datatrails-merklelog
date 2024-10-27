@@ -91,7 +91,7 @@ func TestGetRoot(t *testing.T) {
 	}
 }
 
-func TestIndexProofLocal(t *testing.T) {
+func TestInclusionProofLocal(t *testing.T) {
 	db := NewCanonicalTestDB(t)
 
 	// H return the node hash for index i from the canonical test tree.
@@ -189,22 +189,22 @@ func TestIndexProofLocal(t *testing.T) {
 			if mmrSize == 0 {
 				mmrSize = tt.args.store.Next()
 			}
-			got, got1, err := IndexProofLocal(mmrSize, tt.args.store, tt.args.i)
+			got, got1, err := InclusionProofLocal(mmrSize, tt.args.store, tt.args.i)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("IndexProofLocal() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("InclusionProofLocal() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("IndexProofLocal() = %v, want %v", got, tt.want)
+				t.Errorf("InclusionProofLocal() = %v, want %v", got, tt.want)
 			}
 			if got1 != tt.want1 {
-				t.Errorf("IndexProofLocal() = %v, want %v", got1, tt.want1)
+				t.Errorf("InclusionProofLocal() = %v, want %v", got1, tt.want1)
 			}
 		})
 	}
 }
 
-func TestIndexProofLocalOld(t *testing.T) {
+func TestInclusionProofLocalOld(t *testing.T) {
 	db := NewCanonicalTestDB(t)
 
 	// H return the node hash for index i from the canonical test tree.
@@ -302,16 +302,16 @@ func TestIndexProofLocalOld(t *testing.T) {
 			if mmrSize == 0 {
 				mmrSize = tt.args.store.Next()
 			}
-			got, got1, err := IndexProofLocalOld(mmrSize, tt.args.store, tt.args.i)
+			got, got1, err := InclusionProofLocalOld(mmrSize, tt.args.store, tt.args.i)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("IndexProofLocal() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("InclusionProofLocal() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("IndexProofLocal() = %v, want %v", got, tt.want)
+				t.Errorf("InclusionProofLocal() = %v, want %v", got, tt.want)
 			}
 			if got1 != tt.want1 {
-				t.Errorf("IndexProofLocal() = %v, want %v", got1, tt.want1)
+				t.Errorf("InclusionProofLocal() = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

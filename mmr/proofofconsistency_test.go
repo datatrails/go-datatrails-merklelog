@@ -19,7 +19,7 @@ func testMinimal(t *testing.T, hasher hash.Hash, store *testDb) {
 		t.Errorf(": %v", err)
 	}
 
-	peakProof, err := IndexProofBagged(11, store, hasher, 0)
+	peakProof, err := InclusionProofBagged(11, store, hasher, 0)
 	if err != nil {
 		t.Errorf(": %v", err)
 	}
@@ -35,7 +35,7 @@ func testMinimal(t *testing.T, hasher hash.Hash, store *testDb) {
 		t.Errorf("it is not ok")
 	}
 
-	peakProof, err = IndexProofBagged(11, store, hasher, 1)
+	peakProof, err = InclusionProofBagged(11, store, hasher, 1)
 	if err != nil {
 		t.Errorf(": %v", err)
 	}
@@ -51,7 +51,7 @@ func testMinimal(t *testing.T, hasher hash.Hash, store *testDb) {
 		t.Errorf("it is not ok")
 	}
 
-	peakProof, err = IndexProofBagged(11, store, hasher, 2)
+	peakProof, err = InclusionProofBagged(11, store, hasher, 2)
 	if err != nil {
 		t.Errorf(": %v", err)
 	}
@@ -67,7 +67,7 @@ func testMinimal(t *testing.T, hasher hash.Hash, store *testDb) {
 		t.Errorf("it is not ok")
 	}
 
-	peakProof, err = IndexProofBagged(11, store, hasher, 6)
+	peakProof, err = InclusionProofBagged(11, store, hasher, 6)
 	if err != nil {
 		t.Errorf(": %v", err)
 	}
@@ -166,7 +166,7 @@ func TestIndexConsistencyProof(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := IndexConsistencyProof(store, tt.args.mmrSizeA, tt.args.mmrSizeB)
+			got, err := IndexConsistencyProof(store, tt.args.mmrSizeA-1, tt.args.mmrSizeB-1)
 			if (err != nil) != tt.wantProofErr {
 				t.Errorf("IndexConsistencyProof() error = %v, wantErr %v", err, tt.wantProofErr)
 				return
@@ -191,14 +191,14 @@ func TestIndexConsistencyProof(t *testing.T) {
 				t.Errorf("IndexConsistencyProof(), want %v, got %v", tt.wantProof.Path, got.Path)
 			}
 
-			peakHashesA, err := PeakHashes(store, got.MMRSizeA)
+			peakHashesA, err := PeakHashes(store, got.MMRSizeA-1)
 			if tt.wantPeaksA != nil {
 				require.NoError(t, err)
 				fmt.Printf("peakHashesA expect: %s\n", proofPathStringer(peakHashesA, ", "))
 				fmt.Printf("peakHashesA got   : %s\n", proofPathStringer(peakHashesA, ", "))
 				assert.Equal(t, peakHashesA, tt.wantPeaksA)
 			}
-			peakHashesB, err := PeakHashes(store, got.MMRSizeB)
+			peakHashesB, err := PeakHashes(store, got.MMRSizeB-1)
 			if tt.wantPeaksB != nil {
 				require.NoError(t, err)
 				fmt.Printf("peakHashesB expect: %s\n", proofPathStringer(peakHashesB, ", "))

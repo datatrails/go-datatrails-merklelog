@@ -17,9 +17,9 @@ func GetRoot(mmrSize uint64, store indexStoreGetter, hasher hash.Hash) ([]byte, 
 	return BagPeaksRHS(store, hasher, 0, peaks)
 }
 
-// IndexProofBagged provides a proof of inclusion for the leaf at index i against the full MMR
+// InclusionProofBagged provides a proof of inclusion for the leaf at index i against the full MMR
 //
-// It relies on the methods IndexProofLocal, BagPeaksRHS and PeaksLHS for
+// It relies on the methods InclusionProofLocal, BagPeaksRHS and PeaksLHS for
 // collecting the necessary MMR elements and then combines the results into a
 // final verifiable commitment for the whole MMR.
 //
@@ -49,12 +49,12 @@ func GetRoot(mmrSize uint64, store indexStoreGetter, hasher hash.Hash) ([]byte, 
 //	 .___________.                   .___________.
 //	       |                               |
 //	       |                          reversed(PeaksLHS)
-//	   IndexProofPath
+//	   InclusionProofPath
 //
 // Note that right-sibling is omitted if there is none, and similarly, the left
 // peaks. The individual functions producing those elements contain more detail
 // over the construction of their particular proof component.
-func IndexProofBagged(mmrSize uint64, store indexStoreGetter, hasher hash.Hash, i uint64) ([][]byte, error) {
+func InclusionProofBagged(mmrSize uint64, store indexStoreGetter, hasher hash.Hash, i uint64) ([][]byte, error) {
 
 	var err error
 	var proof [][]byte
@@ -62,7 +62,7 @@ func IndexProofBagged(mmrSize uint64, store indexStoreGetter, hasher hash.Hash, 
 	var leftPath [][]byte
 	var rightSibling []byte
 
-	if proof, iLocalPeak, err = IndexProofLocal(mmrSize, store, i); err != nil {
+	if proof, iLocalPeak, err = InclusionProofLocal(mmrSize, store, i); err != nil {
 		return nil, err
 	}
 
@@ -151,7 +151,7 @@ func PeakBagRHS(
 	return peakHashes, nil
 }
 
-// IndexProofLocal collects the merkle root proof for the local MMR peak containing index i
+// InclusionProofLocal collects the merkle root proof for the local MMR peak containing index i
 //
 // So for the follwing index tree, and i=15 with mmrSize = 26 we would obtain the path
 //
@@ -170,7 +170,7 @@ func PeakBagRHS(
 //	1     2     5      9     12     17     20     24
 //	     / \   / \    / \   /  \   /  \
 //	0   0   1 3   4  7   8 10  11 15  16 18  19 22  23   25
-func IndexProofLocal(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, uint64, error) {
+func InclusionProofLocal(mmrSize uint64, store indexStoreGetter, i uint64) ([][]byte, uint64, error) {
 
 	var proof [][]byte
 	height := IndexHeight(i) // allows for proofs of interior nodes
