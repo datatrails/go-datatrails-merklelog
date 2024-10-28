@@ -128,66 +128,38 @@ func VerifySignedInclusionReceipt(
 	return true, root, nil
 }
 
-type ReceiptBuilder struct {
-	log          logger.Logger
-	massifReader MassifReader
-	cborCodec    commoncbor.CBORCodec
-	sealReader   SignedRootReader
-
-	massifHeight uint8
+type verifiedContextGetter interface {
+	GetVerifiedContext(
+		ctx context.Context, tenantIdentity string, massifIndex uint64,
+		opts ...ReaderOption,
+	) (*VerifiedContext, error)
 }
 
-// newReceiptBuilder creates a new receiptBuilder configured with all the necessary readers and information required to build a receipt
-// Note that errors are logged assuming the calling context is retrieving a receipt,
-// and that all returned errors are StatusErrors that can be returned to the client or nil
-func NewReceiptBuilder(log logger.Logger, reader azblob.Reader, massifHeight uint8) (ReceiptBuilder, error) {
-
-	var err error
-
-	b := ReceiptBuilder{
-		log:          log,
-		massifHeight: massifHeight,
-	}
-
-	b.massifReader = NewMassifReader(log, reader)
-	if b.cborCodec, err = NewRootSignerCodec(); err != nil {
-		return ReceiptBuilder{}, err
-	}
-	b.sealReader = NewSignedRootReader(log, reader, b.cborCodec)
-	b.massifHeight = massifHeight
-
-	return b, nil
-}
-
-func (b *ReceiptBuilder) BuildReceipt(
-	ctx context.Context, tenantIdentity string, mmrIndex uint64,
+// GetReceipt returns a COSE receipt for the given tenantIdentity and mmrIndex
+func NewReceipt(
+	ctx context.Context,
+	massifHeight uint8,
+	tenantIdentity string, mmrIndex uint64,
+	getter verifiedContextGetter,
 ) (*commoncose.CoseSign1Message, error) {
 
-	log := b.log.FromContext(ctx)
+	log := logger.Sugar.FromContext(ctx)
 	defer log.Close()
+	massifIndex := uint32(MassifIndexFromMMRIndex(massifHeight, mmrIndex))
 
-	massifIndex := MassifIndexFromMMRIndex(b.massifHeight, mmrIndex)
-
-	// Get the seal with the latest peak for this event
-	massif, err := b.massifReader.GetMassif(ctx, tenantIdentity, massifIndex)
+	verified, err := getter.GetVerifiedContext(ctx, tenantIdentity, uint64(massifIndex))
 	if err != nil {
 		return nil, fmt.Errorf(
-			"%w: failed to read massif %d for %s", err, massifIndex, tenantIdentity)
+			"%w: failed to get verified context %d for %s", err, massifIndex, tenantIdentity)
 	}
 
-	sealContext := LogBlobContext{
-		BlobPath: TenantMassifSignedRootPath(tenantIdentity, uint32(massifIndex)),
-	}
+	msg, state := verified.Sign1Message, verified.MMRState
 
-	msg, state, err := b.sealReader.ReadLogicalContext(ctx, sealContext)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read seal: %s, %v", sealContext.BlobPath, err)
-	}
-
-	proof, err := mmr.InclusionProof(&massif, state.MMRSize-1, mmrIndex)
+	proof, err := mmr.InclusionProof(&verified.MassifContext, state.MMRSize-1, mmrIndex)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"failed to generating inclusion proof: %d in MMR(%d), %v", mmrIndex, state.MMRSize, err)
+			"failed to generating inclusion proof: %d in MMR(%d), %v",
+			mmrIndex, verified.MMRState.MMRSize, err)
 	}
 
 	peakIndex := mmr.PeakIndex(mmr.LeafCount(state.MMRSize), len(proof))
@@ -231,4 +203,44 @@ func (b *ReceiptBuilder) BuildReceipt(
 	signed.Headers.Unprotected[VDSCoseReceiptProofsTag] = verifiableProofs
 
 	return signed, nil
+}
+
+type ReceiptBuilder struct {
+	log          logger.Logger
+	massifReader MassifReader
+	cborCodec    commoncbor.CBORCodec
+	massifHeight uint8
+}
+
+// newReceiptBuilder creates a new receiptBuilder configured with all the necessary readers and information required to build a receipt
+// Note that errors are logged assuming the calling context is retrieving a receipt,
+// and that all returned errors are StatusErrors that can be returned to the client or nil
+func NewReceiptBuilder(log logger.Logger, reader azblob.Reader, massifHeight uint8) (ReceiptBuilder, error) {
+
+	var err error
+
+	b := ReceiptBuilder{
+		log:          log,
+		massifHeight: massifHeight,
+	}
+
+	if b.cborCodec, err = NewRootSignerCodec(); err != nil {
+		return ReceiptBuilder{}, err
+	}
+	b.massifHeight = massifHeight
+	b.massifReader = NewMassifReader(log, reader)
+	sealReader := NewSignedRootReader(log, reader, b.cborCodec)
+	b.massifReader = NewMassifReader(log, reader, WithSealGetter(&sealReader))
+
+	return b, nil
+}
+
+func (b *ReceiptBuilder) BuildReceipt(
+	ctx context.Context, tenantIdentity string, mmrIndex uint64,
+) (*commoncose.CoseSign1Message, error) {
+
+	log := b.log.FromContext(ctx)
+	defer log.Close()
+
+	return NewReceipt(ctx, b.massifHeight, tenantIdentity, mmrIndex, &b.massifReader)
 }

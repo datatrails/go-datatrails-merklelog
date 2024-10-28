@@ -47,7 +47,7 @@ const (
 type MMRState struct {
 
 	// Version is present in all seals from version 1. The initial release was implicity version 0.
-	Version int `cbor:"7,keyasint"`
+	Version int `cbor:"7,keyasint,omitempty"`
 
 	// The size of the mmr defines the path to the root (and the full structure
 	// of the tree). Note that all subsequent mmr states whose size is *greater*
@@ -55,11 +55,11 @@ type MMRState struct {
 	// hence can be used to verify 'old' receipts. This property is due to the
 	// strict append only structure of the tree.
 	MMRSize        uint64 `cbor:"1,keyasint"`
-	LegacySealRoot []byte `cbor:"2,keyasint"` //  Valid in Version 0 only.
+	LegacySealRoot []byte `cbor:"2,keyasint,omitempty"` //  Valid in Version 0 only
 	// The peak hashes for the mmr identified by MMRSize, this is also the packed accumulator for the tree state.
 	// All inclusion proofs for any node under MMRSize will lead directly to one
 	// of these peaks, or can be extended to do so.
-	Peaks [][]byte `cbor:"8,keyasint"` // Version 1+
+	Peaks [][]byte `cbor:"8,keyasint,omitempty"` // Version 1+
 	// Timestamp is the unix time (milliseconds) read at the time the root was
 	// signed. Including it allows for the same root to be re-signed.
 	Timestamp int64 `cbor:"3,keyasint"`
