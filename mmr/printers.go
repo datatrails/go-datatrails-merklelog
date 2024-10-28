@@ -18,7 +18,7 @@ func proofPathStringer(path [][]byte, sep string) string {
 }
 func proofPathsStringer(paths [][][]byte, sep string) string {
 
-	spaths := make([]string, len(paths))
+	spaths := make([]string, 0, len(paths))
 
 	for _, path := range paths {
 		spaths = append(spaths, fmt.Sprintf("[%s]", proofPathStringer(path, sep)))

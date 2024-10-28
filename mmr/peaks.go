@@ -144,7 +144,7 @@ func PeakIndex(leafCount uint64, d int) int {
 
 	// (a - 1) - (n -1) = a - 1 - n + 1 = a - n
 
-	return int(bits.OnesCount64(leafCount)) - n
+	return bits.OnesCount64(leafCount) - n
 }
 
 // TopPeak returns the smallest, leftmost, peak containing *or equal to* i

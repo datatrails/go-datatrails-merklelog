@@ -2,17 +2,16 @@ package mmr
 
 import "hash"
 
-
 // IncludedRoot calculates the accumulator peak for the provided
 // proof and node value. Note that both interior and leaf nodes are handled
 // identically
 //
 // Arguments:
-// 	* i is the index the nodeHash is to be shown at
-// 	* nodehash the value whose inclusion is to be shown
-//  * proof is the path of ibling values committing i. They recreate the unique
-//  accumulator peak that committed i to the MMR state from which the proof was
-//  produced.
+//   - i is the index the nodeHash is to be shown at
+//   - nodehash the value whose inclusion is to be shown
+//   - proof is the path of ibling values committing i. They recreate the unique
+//     accumulator peak that committed i to the MMR state from which the proof was
+//     produced.
 func IncludedRoot(hasher hash.Hash, i uint64, nodeHash []byte, proof [][]byte) []byte {
 
 	root := nodeHash

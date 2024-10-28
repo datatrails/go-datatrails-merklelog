@@ -40,7 +40,7 @@ const (
 	// Allocation in this range MUST be co-ordinated datatrails wide.
 	// Remembering that the range is *negative* we allocate the tag by
 	// subtracting the IANA registered tag for marking COSE Receipts proof data.
-	SealPeakReceiptsLabel = int64(COSEPrivateStart - VDSCoseReceiptProofsTag)
+	SealPeakReceiptsLabel = COSEPrivateStart - VDSCoseReceiptProofsTag
 )
 
 // MMRState defines the details we include in our signed commitment to the head log state.
