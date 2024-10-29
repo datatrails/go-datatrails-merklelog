@@ -30,7 +30,7 @@ func TreeSize(height uint8) uint64 {
 	return TreeCount(height) * LogEntryBytes
 }
 
-// MaxCount returns the node count
+//  TreeCount returns the node count
 func TreeCount(height uint8) uint64 {
 	return ((1 << height) - 1)
 }
