@@ -5,7 +5,7 @@ func TreeRootIndex(height uint8) uint64 {
 	return (1 << height) - 2
 }
 
-// RangeRootIndex return the Massif root node's index in the overall MMR  given
+// RangeRootIndex return the Massif root node's mmr index in the overall MMR  given
 // the massif height and the first index of the MMR it contains
 func RangeRootIndex(firstIndex uint64, height uint8) uint64 {
 	return firstIndex + (1 << height) - 2
