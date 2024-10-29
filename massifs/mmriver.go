@@ -135,7 +135,7 @@ type verifiedContextGetter interface {
 	) (*VerifiedContext, error)
 }
 
-// GetReceipt returns a COSE receipt for the given tenantIdentity and mmrIndex
+// NewReceipt returns a COSE receipt for the given tenantIdentity and mmrIndex
 func NewReceipt(
 	ctx context.Context,
 	massifHeight uint8,
