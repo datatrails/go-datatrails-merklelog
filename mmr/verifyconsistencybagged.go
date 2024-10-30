@@ -22,26 +22,25 @@ func VerifyConsistencyBagged(
 	hasher hash.Hash, peakHashesA [][]byte,
 	proof ConsistencyProof, rootA []byte, rootB []byte) bool {
 
-	// A zero length path not valid, even in the case where the mmr's are
-	// identical (root a == root b)
-	if len(proof.PathBagged) == 0 {
-		return false
-	}
-
 	// There must be something to prove
 	if len(peakHashesA) == 0 {
 		return false
-	}
-
-	// Catch the case where mmr b is exactly mmr a
-	if bytes.Equal(rootA, rootB) {
-		return true
 	}
 
 	// Check the peakHashesA, which will have been retrieved from the updated
 	// log, recreate rootA. rootA should have come from a previous Merkle
 	// Signed Root.
 	if !bytes.Equal(HashPeaksRHS(hasher, peakHashesA), rootA) {
+		return false
+	}
+
+	// Catch the case where mmr b is exactly mmr a
+	if len(proof.PathBagged) == 0 && bytes.Equal(rootA, rootB) {
+		return true
+	}
+
+	// Otherwise, s zero length path not valid
+	if len(proof.PathBagged) == 0 {
 		return false
 	}
 

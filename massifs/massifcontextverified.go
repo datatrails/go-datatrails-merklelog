@@ -155,9 +155,7 @@ func (mc *MassifContext) verifyContext(
 	ctx context.Context, options ReaderOptions,
 ) (*VerifiedContext, error) {
 
-	var ok bool
 	var err error
-	var peaksB [][]byte
 
 	// This checks that any un-committed data is consistent with the latest seal available for the massif
 
@@ -171,6 +169,23 @@ func (mc *MassifContext) verifyContext(
 		return nil, err
 	}
 
+	if state.Version == int(MMRStateVersion1) {
+		return mc.verifyContextV1(msg, state, options)
+	}
+	return mc.verifyContextV0(msg, state, options)
+}
+
+func (mc *MassifContext) verifyContextV1(
+	msg *cose.CoseSign1Message, state MMRState, options ReaderOptions,
+) (*VerifiedContext, error) {
+	var ok bool
+	var err error
+	var peaksB [][]byte
+
+	if state.Version != int(MMRStateVersion1) {
+		return nil, fmt.Errorf("unsupported MMR state version %d", state.Version)
+	}
+
 	// get the peaks from the local store, we are checking the store against the
 	// latest additions. as we verify the signature below, any changes to the
 	// store will be caught.
@@ -179,21 +194,9 @@ func (mc *MassifContext) verifyContext(
 		return nil, err
 	}
 
-	// NOTICE: The verification uses the public key that is provided on the
-	// message.  If the caller wants to ensure the massif is signed by the
-	// expected key then they must obtain a copy of the public key from a source
-	// they trust and supply it as an option.
-	pubKeyProvider := cose.NewCWTPublicKeyProvider(msg)
-
-	if options.trustedSealerPubKey != nil {
-		var remotePub crypto.PublicKey
-		remotePub, _, err = pubKeyProvider.PublicKey()
-		if err != nil {
-			return nil, err
-		}
-		if !options.trustedSealerPubKey.Equal(remotePub) {
-			return nil, ErrRemoteSealKeyMatchFailed
-		}
+	pubKeyProvider, err := mc.sealPublicKeyProvider(msg, options)
+	if err != nil {
+		return nil, err
 	}
 
 	// Ensure the peaks we read from the store are the ones that were signed.
@@ -218,7 +221,7 @@ func (mc *MassifContext) verifyContext(
 			err, mc.Start.MassifIndex, mc.TenantIdentity)
 	}
 	if !ok {
-		// We don't expect false without error, but we
+		// We don't expect false without error.
 		return nil, fmt.Errorf("%w: failed to verify accumulator state massif %d for tenant %s",
 			mmr.ErrConsistencyCheck, mc.Start.MassifIndex, mc.TenantIdentity)
 	}
@@ -252,3 +255,30 @@ func (mc *MassifContext) verifyContext(
 		ConsistentRoots: peaksB,
 	}, nil
 }
+
+func (mc *MassifContext) sealPublicKeyProvider(
+	msg *cose.CoseSign1Message, options ReaderOptions,
+) (*cose.CWTPublicKeyProvider, error) {
+
+	var err error
+
+	// NOTICE: The verification uses the public key that is provided on the
+	// message.  If the caller wants to ensure the massif is signed by the
+	// expected key then they must obtain a copy of the public key from a source
+	// they trust and supply it as an option.
+	pubKeyProvider := cose.NewCWTPublicKeyProvider(msg)
+	if options.trustedSealerPubKey == nil {
+		return pubKeyProvider, nil
+	}
+
+	var remotePub crypto.PublicKey
+	remotePub, _, err = pubKeyProvider.PublicKey()
+	if err != nil {
+		return nil, err
+	}
+	if !options.trustedSealerPubKey.Equal(remotePub) {
+		return nil, ErrRemoteSealKeyMatchFailed
+	}
+	return pubKeyProvider, nil
+}
+

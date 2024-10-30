@@ -94,6 +94,7 @@ func (c *TestMinimalCommitter) ContextCommitted(ctx context.Context, tenantIdent
 	}
 
 	state := MMRState{
+		Version: int(MMRStateVersion1),
 		MMRSize:         mmrSize,
 		Peaks:           peaks,
 		Timestamp:       time.Now().UnixMilli(),
