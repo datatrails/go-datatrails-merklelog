@@ -40,18 +40,15 @@ type MMRiverVerifiableProofsHeader struct {
 	VerifiableProofs MMRiverVerifiableProofs `cbor:"396,keyasint"`
 }
 
-/*
-func SetMMRiverInclusionProofsHeader(
-	msg *commoncose.CoseSign1Message, massif MassifReader, mmrSize, mmrIndex uint64) error {
-	msg.Headers.Unprotected[VDSCoseReceiptProofsTag] = proofs
-}*/
-
 // VerifySignedInclusionReceipts verifies a signed COSE receipt encoded according to the MMRIVER VDS
 // on success the produced root is returned.
 // Signature verification failure is not an error, but the returned root will be nil and the result will be false.
 // All other unexpected issues are returned as errors, with a false result and nil root.
 // Note that MMRIVER receipts allow for multiple inclusion proofs to be attached to the receipt.
 // This function returns true only if ALL receipts verify
+//
+// The candidates array provides the *candidate* values. Once verified, we can call them node values (or leaves),
+// Note that any node value in the log may be proven by a receipt, not just leaves.
 func VerifySignedInclusionReceipts(
 	ctx context.Context,
 	receipt *commoncose.CoseSign1Message,

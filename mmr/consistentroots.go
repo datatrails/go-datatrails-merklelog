@@ -24,7 +24,7 @@ var (
 // The order of the roots returned matches the order of the nodes in the accumulator.
 //
 // Args:
-//   - fromSize the size the complete MMR from which consistency was proven.
+//   - ifrom the last node index of the the complete MMR from which consistency was proven.
 //   - accumulatorfrom the node values correponding to the peaks of the accumulator at MMR(sizeA)
 //   - proofs the inclusion proofs for each node in accumulatorfrom in MMR(sizeB)
 func ConsistentRoots(hasher hash.Hash, ifrom uint64, accumulatorfrom [][]byte, proofs [][][]byte) ([][]byte, error) {
@@ -36,9 +36,9 @@ func ConsistentRoots(hasher hash.Hash, ifrom uint64, accumulatorfrom [][]byte, p
 
 	roots := [][]byte{}
 
-	for iacc := 0; iacc < len(accumulatorfrom); iacc++ {
+	for i := 0; i < len(accumulatorfrom); i++ {
 		// remembering that peaks are 1 based (for now)
-		root := IncludedRoot(hasher, frompeaks[iacc], accumulatorfrom[iacc], proofs[iacc])
+		root := IncludedRoot(hasher, frompeaks[i], accumulatorfrom[i], proofs[i])
 		// The nature of MMR's is that many nodes are committed by the
 		// same accumulator peak, and that peak changes with
 		// low frequency.

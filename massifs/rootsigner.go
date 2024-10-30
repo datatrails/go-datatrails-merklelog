@@ -177,20 +177,38 @@ func (rs RootSigner) Sign1(
 	return encodable.MarshalCBOR()
 }
 
-// Note: regarding why and how we can pre-sign receipts:
-//
-// A specific advantage of MMR's is that we can pre-sign the protected headers
-// for all receipts we will ever be asked for. The scitt endpoint then only has
-// to copy the pre-signed receipt and *add* the inclusion path it is asked for.
-//
-// Importantly, this allows for self service *privacy preserving*, scitt
-// compatible, receipts based on replicated copies of the log.
+// signEmptyPeakReceipts signs and encodes a COSE Receipt (MMRIVER) for each
+// peak in the accumulator.
 //
 // The most natural place to produce the pre-signed receipts is in the the log
 // confirmer, because we are allways pre-signing *peaks* of the MMR. And the
 // consistency between peaks (accumulators) is the concern of the sealer by way
-// of LogConfirmer. And the most natural place to store them is in the massif seal.
-// Whis is what we accomodate here.
+// of LogConfirmer. And the most natural place to store them is in the massif
+// seal.  Which is what we accomodate here.
+//
+// It is a specific property of MMR based logs that proofs of inclusion always
+// lead to an accumulator peak. This leads to the ability to pre-sign receipts
+// *once* for all possible inclusion proofs in the current mmr state by simply
+// singing the peak and leaving the proof empty.  Because the proofs are never
+// signed, (the are attached in the unprotected header), Those can be added on
+// demand in a completely trustless way.
+//
+// Importantly, this allows for self service *privacy preserving*, scitt
+// compatible, receipts based on replicated copies of the log. The signing key
+// is not required to attach the proof.
+//
+// Notice that, due to the Low Update Frequency property, defined in
+// https://eprint.iacr.org/2015/718.pdf, *many* MMR sizes will contain the same
+// peak. Over time, the signed peak for any element changes less and less
+// frequently (log base 2). This means, in addition to being able to pre-sign,
+// the work required of a receipt holder to check the log remains consistent
+// with their old receipt gets less and less. And, in the case of a receipt
+// against an unequivocal log state, completely redundant. The receipt holders
+// can also significantly compress the receipt data they retain.
+//
+// It is true, due to low update frequency, that many may be copies of earlier
+// receipts, but the locality here means consumers only need to hit one blob and
+// in doing so reveal less about their area of interest.
 func (c *RootSigner) signEmptyPeakReceipts(
 	coseSigner cose.Signer,
 	publicKey *ecdsa.PublicKey,
