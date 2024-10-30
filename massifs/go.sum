@@ -42,6 +42,8 @@ github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2 h1:XHOnouVk1mx
 github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2/go.mod h1:wP83P5OoQ5p6ip3ScPr0BAq0BvuPAvacpEuSzyouqAI=
 github.com/datatrails/go-datatrails-common v0.18.0 h1:OeNP4EdIjhLHnE/mdN2/kp6Fq+xOnE6Y2p3DKg4xXHw=
 github.com/datatrails/go-datatrails-common v0.18.0/go.mod h1:fBDqKHRLUYcictdWdLrIhKNhieKVE2r0II8vyETCuhM=
+github.com/datatrails/go-datatrails-merklelog/mmr v0.1.0 h1:DKHY1rgLQ+8JoVZfSrMOwPytgQy7+oyYQ8EWHryEXE4=
+github.com/datatrails/go-datatrails-merklelog/mmr v0.1.0/go.mod h1:B/Kkz4joZTiTz0q/9FFAgHR+Tcn6UxtphMuCzamAc9Q=
 github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.1.0 h1:q9RXtAGydXKSJjARnFObNu743cbfIOfERTXiiVa2tF4=
 github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.1.0/go.mod h1:rWFjeK1NU7qnhl9+iKdjASpw/CkPwDAOPHsERYR7uEQ=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -51,8 +53,6 @@ github.com/dimchansky/utfbom v1.1.1 h1:vV6w1AhK4VMnhBno/TPVCoK9U/LP0PkLCS9tbxHdi
 github.com/dimchansky/utfbom v1.1.1/go.mod h1:SxdoEBH5qIqFocHMyGOXVAybYJdr71b1Q/j0mACtrfE=
 github.com/fortytw2/leaktest v1.3.0 h1:u8491cBMTQ8ft8aeV+adlcytMZylmA5nnwwkRZjI8vw=
 github.com/fortytw2/leaktest v1.3.0/go.mod h1:jDsjWgpAGjm2CA7WthBh/CdZYEPF31XHquHwclZch5g=
-github.com/fxamacker/cbor v1.5.1 h1:XjQWBgdmQyqimslUh5r4tUGmoqzHmBFQOImkWGi2awg=
-github.com/fxamacker/cbor v1.5.1/go.mod h1:3aPGItF174ni7dDzd6JZ206H8cmr4GDNBGpPa971zsU=
 github.com/fxamacker/cbor/v2 v2.6.0 h1:sU6J2usfADwWlYDAFhZBQ6TnLFBHxgesMrQfQgk1tWA=
 github.com/fxamacker/cbor/v2 v2.6.0/go.mod h1:pxXPTn3joSm21Gbwsv0w9OSA2y1HFR9qXEeXQVeNoDQ=
 github.com/gabriel-vasile/mimetype v1.4.4 h1:QjV6pZ7/XZ7ryI2KuyeEDE8wnh7fHP9YnQy+R0LnH8I=

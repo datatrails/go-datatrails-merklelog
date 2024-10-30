@@ -2,10 +2,8 @@ module github.com/datatrails/go-datatrails-merklelog/massifs
 
 go 1.22
 
-replace github.com/datatrails/go-datatrails-merklelog/mmr => ../mmr
-
 require (
-	github.com/datatrails/go-datatrails-merklelog/mmr v0.0.2
+	github.com/datatrails/go-datatrails-merklelog/mmr v0.1.0
 	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.1.0
 )
 
@@ -19,7 +17,7 @@ require (
 
 require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.11.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.11.1
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.8.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.7.1 // indirect
 	github.com/Azure/go-amqp v1.0.5 // indirect
@@ -35,8 +33,7 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/fxamacker/cbor v1.5.1
-	github.com/fxamacker/cbor/v2 v2.6.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.6.0
 	github.com/gabriel-vasile/mimetype v1.4.4 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
