@@ -281,4 +281,3 @@ func (mc *MassifContext) sealPublicKeyProvider(
 	}
 	return pubKeyProvider, nil
 }
-

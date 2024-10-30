@@ -23,6 +23,10 @@ func (mc *MassifContext) verifyContextV0(
 	}
 
 	state.LegacySealRoot, err = mmr.GetRoot(state.MMRSize, mc, sha256.New())
+	if err != nil {
+		return nil, err
+	}
+
 	pubKeyProvider, err := mc.sealPublicKeyProvider(msg, options)
 	if err != nil {
 		return nil, err
