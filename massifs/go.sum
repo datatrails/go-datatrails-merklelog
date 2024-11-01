@@ -42,8 +42,8 @@ github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2 h1:XHOnouVk1mx
 github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2/go.mod h1:wP83P5OoQ5p6ip3ScPr0BAq0BvuPAvacpEuSzyouqAI=
 github.com/datatrails/go-datatrails-common v0.18.0 h1:OeNP4EdIjhLHnE/mdN2/kp6Fq+xOnE6Y2p3DKg4xXHw=
 github.com/datatrails/go-datatrails-common v0.18.0/go.mod h1:fBDqKHRLUYcictdWdLrIhKNhieKVE2r0II8vyETCuhM=
-github.com/datatrails/go-datatrails-merklelog/mmr v0.1.0 h1:DKHY1rgLQ+8JoVZfSrMOwPytgQy7+oyYQ8EWHryEXE4=
-github.com/datatrails/go-datatrails-merklelog/mmr v0.1.0/go.mod h1:B/Kkz4joZTiTz0q/9FFAgHR+Tcn6UxtphMuCzamAc9Q=
+github.com/datatrails/go-datatrails-merklelog/mmr v0.1.1 h1:Ro2fYdDYxGGcPmudYuvPonx78GkdQuKwzrdknLR55cE=
+github.com/datatrails/go-datatrails-merklelog/mmr v0.1.1/go.mod h1:B/Kkz4joZTiTz0q/9FFAgHR+Tcn6UxtphMuCzamAc9Q=
 github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.1.0 h1:q9RXtAGydXKSJjARnFObNu743cbfIOfERTXiiVa2tF4=
 github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.1.0/go.mod h1:rWFjeK1NU7qnhl9+iKdjASpw/CkPwDAOPHsERYR7uEQ=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

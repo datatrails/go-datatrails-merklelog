@@ -13,7 +13,7 @@ replace (
 require (
 	github.com/datatrails/go-datatrails-common v0.18.0
 	github.com/datatrails/go-datatrails-merklelog/massifs v0.0.0-00010101000000-000000000000
-	github.com/datatrails/go-datatrails-merklelog/mmr v0.1.0
+	github.com/datatrails/go-datatrails-merklelog/mmr v0.1.1
 	github.com/stretchr/testify v1.9.0
 )
 
