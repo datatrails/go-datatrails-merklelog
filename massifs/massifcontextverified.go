@@ -233,6 +233,10 @@ func (mc *MassifContext) verifyContextV1(
 	// before replicating the new data.
 	if options.trustedBaseState != nil {
 
+		if options.trustedBaseState.Version == int(MMRStateVersion0) {
+			return nil, fmt.Errorf("unsupported MMR state version 0 (you should promote to v1 on demand using mmr.PeakHashes)")
+		}
+
 		ok, _, err = mmr.CheckConsistency(
 			mc, sha256.New(),
 			options.trustedBaseState.MMRSize,

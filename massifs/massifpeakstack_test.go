@@ -535,7 +535,7 @@ func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 	iBaseLeafNode45 := iPeakNode45 - mmr.IndexHeight(iPeakNode45)
 	iLeaf45 := mmr.LeafCount(iBaseLeafNode45)
 
-	hsz := mmr.HeightSize(uint64(committer.cfg.MassifHeight))
+	hsz := mmr.HeightSize(uint64(committer.Cfg.MassifHeight))
 	hlc := (hsz + 1) / 2
 	mi30 := iLeaf30 / hlc
 	mcPeakNode30, err := massifReader.GetMassif(ctx, tenantIdentity, mi30)
