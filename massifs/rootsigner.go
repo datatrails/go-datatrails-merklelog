@@ -20,16 +20,23 @@ type MMRStateVersion int
 
 const (
 	MMRStateVersion0 MMRStateVersion = iota // Implicit initial release version
-	MMRStateVersion1                        // Version 1
+	MMRStateVersion1                        // Version 1 is DRAFT_00 vds =2
+	// Version2 was introduced to indicate support for MMRIVER 02.
+	// In this draft we co-ordinated a requested assignment for the vds and in
+	// doing so ended up with 3 rather than 2.
+	// Note that this change _does not_ impact verification of the checkpoints.
+	// It only impacts the presigned receipts attached in the unprotected headers.
+	MMRStateVersion2 // Version 1 is DRAFT_02 vds =3 (otherwise compatible with v1)
 	// Note: new versions must be monotonicaly assigned.
 
 )
 
 const (
-	MMRStateVersionCurrent  = MMRStateVersion1
+	MMRStateVersionCurrent  = MMRStateVersion2
 	VDSCoseReceiptsTag      = 395
 	VDSCoseReceiptProofsTag = 396
-	VDSMMRiver              = 2
+	VDSMMRiver_DRAFT00      = 2
+	VDSMMRiver              = 3
 	VDSInclusionProof       = -1
 	InclusionProofIndex     = 1
 	InclusionProofProof     = 2
