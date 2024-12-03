@@ -369,10 +369,17 @@ func (mc *MassifContext) Append(value []byte) (uint64, error) {
 // trie. On error, the current data buffer should be discarded entirely (not
 // written back to storage)
 //
+// Params:
+//   - extraBytes - extra bytes that are added to the trie value after idtimestamp. maximum 24 bytes.
+//     any extra bytes above 24 bytes will be truncated.
+//
+// NOTE: the trie value should be no larger than 32 bytes.
+//
 // Returns the resulting size of the mmr if the leaf is adds successfully.
 func (mc *MassifContext) AddHashedLeaf(
 	hasher hash.Hash,
 	idTimestamp uint64,
+	extraBytes []byte,
 	logId []byte,
 	appId []byte,
 	value []byte,
@@ -406,7 +413,7 @@ func (mc *MassifContext) AddHashedLeaf(
 	nextLeafIndex := mc.MassifLeafCount()
 
 	// Overwrite the pre-allocated index entry with the index data.
-	SetTrieEntry(mc.Data, mc.IndexStart(), nextLeafIndex, idTimestamp, trieKey)
+	SetTrieEntry(mc.Data, mc.IndexStart(), nextLeafIndex, idTimestamp, extraBytes, trieKey)
 
 	// Save the last id added so that we can guarantee monotonicity (and hence uniqueness for the tenant)
 	mc.setLastIdTimestamp(idTimestamp)

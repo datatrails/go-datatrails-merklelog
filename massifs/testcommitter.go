@@ -162,7 +162,7 @@ func (c *TestMinimalCommitter) AddLeaves(
 
 	for _, args := range batch {
 
-		_, err = mc.AddHashedLeaf(hasher, args.Id, args.LogId, args.AppId, args.Value)
+		_, err = mc.AddHashedLeaf(hasher, args.Id, args.LogId, args.AppId, nil, args.Value)
 		if errors.Is(err, ErrMassifFull) {
 			_, err = c.committer.CommitContext(ctx, mc)
 			if err != nil {
@@ -181,7 +181,7 @@ func (c *TestMinimalCommitter) AddLeaves(
 
 			// Remember to add the leaf we failed to add above
 			_, err = mc.AddHashedLeaf(
-				hasher, args.Id, args.LogId, args.AppId, args.Value)
+				hasher, args.Id, args.LogId, args.AppId, nil, args.Value)
 			if err != nil {
 				c.log.Infof("AddLeaves: %v", err)
 				return err
