@@ -370,10 +370,8 @@ func (mc *MassifContext) Append(value []byte) (uint64, error) {
 // written back to storage)
 //
 // Params:
-//   - extraBytes - extra bytes that are added to the trie value after idtimestamp. maximum 24 bytes.
+//   - extraBytes - extra bytes that are added to the trie value before idtimestamp. maximum 24 bytes.
 //     any extra bytes above 24 bytes will be truncated.
-//
-// NOTE: the trie value should be no larger than 32 bytes.
 //
 // Returns the resulting size of the mmr if the leaf is adds successfully.
 func (mc *MassifContext) AddHashedLeaf(
