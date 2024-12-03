@@ -23,6 +23,19 @@ import (
 )
 
 const (
+
+	/**
+	 * Each Trie Entry is the following:
+	 *
+	 * |----------|-------------|--------------|
+	 * | Trie Key | Extra Bytes | ID Timestamp |
+	 * |----------|-------------|--------------|
+	 * | 32 bytes |  24 bytes   |    8 bytes   |
+	 * |----------|-------------|--------------|
+	 *
+	 * Where Trie Value = Extra Bytes + ID Timestamp
+	 */
+
 	TrieEntryBytes            = 32 * 2 // 32 for trie key and 32 for trie value
 	TrieKeyBytes              = 32
 	TrieKeyEnd                = TrieKeyBytes
