@@ -58,7 +58,10 @@ func (s *TestSignerContext) SealedState(tenantIdentity string, massifIndex uint6
 
 func signState(
 	rootSigner RootSigner,
-	coseSigner azkeys.IdentifiableCoseSigner, subject string, state MMRState) ([]byte, error) {
+	coseSigner IdentifiableCoseSigner,
+	subject string,
+	state MMRState,
+) ([]byte, error) {
 
 	publicKey, err := coseSigner.PublicKey()
 	if err != nil {
