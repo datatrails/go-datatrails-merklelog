@@ -129,15 +129,6 @@ func TestNewLogDirCacheEntry(t *testing.T) {
 			outcome:   map[uint64]string{0: "/log/massif/0.log"},
 		},
 		{
-			name:      "fail two logs same index",
-			opts:      []massifs.DirCacheOption{massifs.WithReaderOption(massifs.WithMassifHeight(14))},
-			opener:    op,
-			dirlister: dl,
-			logs:      "/same/log",
-			isdir:     true,
-			wantErr:   massifs.ErrLogFileDuplicateMassifIndices,
-		},
-		{
 			name:      "valid + invalid height not default",
 			opts:      []massifs.DirCacheOption{massifs.WithReaderOption(massifs.WithMassifHeight(14))},
 			opener:    op,

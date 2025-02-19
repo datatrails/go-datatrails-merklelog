@@ -108,7 +108,7 @@ linters-settings:
 #            paths anyway (we have no control over there layout). Until we get
 #            direct evidence this is hurting us, we prefer our stucts layed out
 #            logically and don't want to have to nolint tag everything.
-#            
+#
 # misspell - expected UK spelling with misspell, but customer facing text needs to be US.
 # tagalign - suppress until we can get a golang code formatter that will fix this (cosmetic)
 #
@@ -145,7 +145,7 @@ linters:
     - gofumpt
     - golint
     - gomoddirectives
-    - gomnd
+    - gomnd # we have alot of bitshifts and 2 and 1 declared inline which is clearer than defining consts
     - gosec
     - gosimple
     - ifshort

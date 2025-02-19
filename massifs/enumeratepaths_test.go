@@ -75,7 +75,7 @@ func TestEnumerateTenants(t *testing.T) {
 
 			expectVisited := 0
 
-			for iBatch := 0; iBatch < len(tt.args.batches); iBatch++ {
+			for iBatch := range tt.args.batches {
 
 				newUUIDs, marker, err = EnumerateIdentifiedPaths(
 					ctx, store, "ignored", parseTenantUUID, found, marker)
@@ -123,7 +123,7 @@ func batchMixedTenant(g *mmrtesting.TestGenerator, base, responseItemCount, mixC
 
 	tenantID := g.NewRandomUUIDString(g.T)
 	var items []*azStorageBlob.BlobItemInternal
-	for i := 0; i < responseItemCount; i++ {
+	for i := range responseItemCount {
 		name := fmtTenantBlobPath(tenantID, fmt.Sprintf("%d", base+i))
 		items = append(items, &azStorageBlob.BlobItemInternal{
 			Name: &name,
@@ -143,7 +143,7 @@ func batchSameTenant(g *mmrtesting.TestGenerator, base, responseItemCount int) *
 
 	tenantID := g.NewRandomUUIDString(g.T)
 	var items []*azStorageBlob.BlobItemInternal
-	for i := 0; i < responseItemCount; i++ {
+	for i := range responseItemCount {
 		name := fmtTenantBlobPath(tenantID, fmt.Sprintf("%d", base+i))
 		items = append(items, &azStorageBlob.BlobItemInternal{
 			Name: &name,

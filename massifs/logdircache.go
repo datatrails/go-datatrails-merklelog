@@ -13,6 +13,11 @@ import (
 	"github.com/datatrails/go-datatrails-common/logger"
 )
 
+const (
+	// logTenantPrefix is the prefix of the log tenant
+	logTenantPrefix = "tenant/"
+)
+
 var (
 	ErrLogFileNoMagic                       = errors.New("the file is not recognized as a massif")
 	ErrLogFileBadHeader                     = errors.New("a massif file header was to short or badly formed")
@@ -602,14 +607,6 @@ func (d *LogDirCacheEntry) setMassifStart(opts DirCacheOptions, logfile string, 
 		return fmt.Errorf("%w: header=%d, expected=%d", ErrLogFileMassifHeightHeader, ms.MassifHeight, opts.massifHeight)
 	}
 
-	// if we already have a log with the same massifIndex, read from a
-	// *different file*, we error out as the files in directories are
-	// potentially not for the same tenancy - which means the data is not
-	// correct
-	if cachedLogFile, ok := d.MassifPaths[uint64(ms.MassifIndex)]; ok && cachedLogFile != logfile {
-		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedLogFile, logfile)
-	}
-
 	// associate filename with the massif index
 	d.MassifPaths[uint64(ms.MassifIndex)] = logfile
 	d.MassifStarts[logfile] = ms
@@ -630,14 +627,6 @@ func (d *LogDirCacheEntry) setMassifStart(opts DirCacheOptions, logfile string, 
 func (d *LogDirCacheEntry) setSeal(
 	massifIndex uint32, sealFilename string, seal *SealedState,
 ) error {
-
-	// if we already have a log with the same massifIndex, read from a
-	// *different file*, we error out as the files in directories are
-	// potentially not for the same tenancy - which means the data is not
-	// correct
-	if cachedSealFile, ok := d.SealPaths[uint64(massifIndex)]; ok && cachedSealFile != sealFilename {
-		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedSealFile, sealFilename)
-	}
 
 	// associate filename with the massif index
 	d.SealPaths[uint64(massifIndex)] = sealFilename

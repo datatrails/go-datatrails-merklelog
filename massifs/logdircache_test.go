@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/datatrails/go-datatrails-common/logger"
 	"github.com/stretchr/testify/require"
 )
 
@@ -161,45 +160,6 @@ func TestTenantReplicaPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := TenantMassifReplicaPath(tt.args.tenantIdentity); got != tt.want {
 				t.Errorf("TenantReplicaPath() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestLogDirCache_ResolveSealDir(t *testing.T) {
-	type fields struct {
-		log     logger.Logger
-		opts    DirCacheOptions
-		entries map[string]*LogDirCacheEntry
-		opener  Opener
-	}
-	type args struct {
-		tenantIdentityOrLocalPath string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    string
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &LogDirCache{
-				log:     tt.fields.log,
-				opts:    tt.fields.opts,
-				entries: tt.fields.entries,
-				opener:  tt.fields.opener,
-			}
-			got, err := c.ResolveSealDir(tt.args.tenantIdentityOrLocalPath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("LogDirCache.ResolveSealDir() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("LogDirCache.ResolveSealDir() = %v, want %v", got, tt.want)
 			}
 		})
 	}

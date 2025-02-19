@@ -173,7 +173,7 @@ func TestDraftAddHashedLeaf(t *testing.T) {
 		assert.Equal(t, MMRIndex(uint64(e+1)), iNext)
 	}
 	assert.Equal(t, len(KAT39Nodes), len(db.nodes))
-	for i := 0; i < len(KAT39Nodes); i++ {
+	for i := range KAT39Nodes {
 		assert.Equal(t, mustHex2Hash(t, KAT39Nodes[i]), db.nodes[i])
 	}
 }
