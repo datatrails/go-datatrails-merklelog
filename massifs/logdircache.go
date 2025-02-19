@@ -13,6 +13,11 @@ import (
 	"github.com/datatrails/go-datatrails-common/logger"
 )
 
+const (
+	// logTenantPrefix is the prefix of the log tenant
+	logTenantPrefix = "tenant/"
+)
+
 var (
 	ErrLogFileNoMagic                       = errors.New("the file is not recognized as a massif")
 	ErrLogFileBadHeader                     = errors.New("a massif file header was to short or badly formed")
@@ -606,8 +611,28 @@ func (d *LogDirCacheEntry) setMassifStart(opts DirCacheOptions, logfile string, 
 	// *different file*, we error out as the files in directories are
 	// potentially not for the same tenancy - which means the data is not
 	// correct
-	if cachedLogFile, ok := d.MassifPaths[uint64(ms.MassifIndex)]; ok && cachedLogFile != logfile {
-		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedLogFile, logfile)
+
+	// NOTE: due to relative / absolute path discrepency we only need to check the substring matches
+	//
+	// we know the format for the path is <replica dir>/<log tenant>/<log index>/massifs/xxx.log
+	//
+	// so we should check the suffix of the file paths after the last "/tenant"
+
+	cachedLogFile, ok := d.MassifPaths[uint64(ms.MassifIndex)]
+
+	// we have a cached log file
+	if ok {
+		logPath := strings.Split(logfile, logTenantPrefix)
+		cachedLogPath := strings.Split(cachedLogFile, logTenantPrefix)
+
+		// check the cached log path is the same as the given log path
+		if cachedLogPath[len(cachedLogPath)-1] != logPath[len(logPath)-1] {
+			return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedLogFile, logfile)
+		}
+	}
+
+	if ok && cachedLogFile != logfile {
+
 	}
 
 	// associate filename with the massif index

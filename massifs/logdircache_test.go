@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/datatrails/go-datatrails-common/logger"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -201,6 +202,68 @@ func TestLogDirCache_ResolveSealDir(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("LogDirCache.ResolveSealDir() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+// TestLogDirCacheEntry_setMassifStart tests:
+//
+//  1. a discrepency between absolute/relative path in cached log and given log does not cause
+//     an error if they are pointing to the same path.
+func TestLogDirCacheEntry_setMassifStart(t *testing.T) {
+	type fields struct {
+		MassifPaths map[uint64]string
+	}
+	type args struct {
+		logfile string
+		ms      MassifStart
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		err    error
+	}{
+		{
+			name: "positive, absolute/relative cache/log paths",
+			fields: fields{
+				MassifPaths: map[uint64]string{
+					23: "/home/foo/merklelog/tenant/1234/0/massifs/0000.log",
+				},
+			},
+			args: args{
+				logfile: "local-merklelog/tenant/1234/0/massifs/0000.log",
+				ms: MassifStart{
+					MassifIndex: 23,
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "positive, absolute/relative cache/log paths reversed",
+			fields: fields{
+				MassifPaths: map[uint64]string{
+					23: "merklelog/tenant/1234/0/massifs/0000.log",
+				},
+			},
+			args: args{
+				logfile: "home/barlocal-merklelog/tenant/1234/0/massifs/0000.log",
+				ms: MassifStart{
+					MassifIndex: 23,
+				},
+			},
+			err: nil,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			d := &LogDirCacheEntry{
+				MassifPaths:  test.fields.MassifPaths,
+				MassifStarts: map[string]MassifStart{},
+			}
+			err := d.setMassifStart(DirCacheOptions{}, test.args.logfile, test.args.ms)
+
+			assert.Equal(t, test.err, err)
 		})
 	}
 }
