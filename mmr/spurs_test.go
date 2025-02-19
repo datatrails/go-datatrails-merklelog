@@ -126,7 +126,7 @@ func TestLeafMinusSpurSum(t *testing.T) {
 
 			// Test that the stack like property is maintained
 			top := uint64(0)
-			for i := uint64(0); i < uint64(iLeaf); i++ {
+			for i := range uint64(iLeaf) {
 
 				delta := SpurHeightLeaf(i)
 				top -= delta // pop
