@@ -157,7 +157,6 @@ linters:
     - maintidx
     - misspell
     - musttag
-    - mnd # we have alot of bitshifts and 2 and 1 declared inline which is clearer than defining consts
     - nilerr
     - nilnil
     - nlreturn
