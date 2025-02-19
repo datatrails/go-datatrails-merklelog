@@ -618,21 +618,9 @@ func (d *LogDirCacheEntry) setMassifStart(opts DirCacheOptions, logfile string, 
 	//
 	// so we should check the suffix of the file paths after the last "/tenant"
 
-	cachedLogFile, ok := d.MassifPaths[uint64(ms.MassifIndex)]
-
-	// we have a cached log file
-	if ok {
-		logPath := strings.Split(logfile, logTenantPrefix)
-		cachedLogPath := strings.Split(cachedLogFile, logTenantPrefix)
-
-		// check the cached log path is the same as the given log path
-		if cachedLogPath[len(cachedLogPath)-1] != logPath[len(logPath)-1] {
-			return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedLogFile, logfile)
-		}
-	}
-
-	if ok && cachedLogFile != logfile {
-
+	// we have a cached log file so check the cached log path is the same as the given log path
+	if cachedLogFile, ok := d.MassifPaths[uint64(ms.MassifIndex)]; ok && !checkLogPathAgainstCache(cachedLogFile, logfile) {
+		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedLogFile, logfile)
 	}
 
 	// associate filename with the massif index
@@ -660,7 +648,7 @@ func (d *LogDirCacheEntry) setSeal(
 	// *different file*, we error out as the files in directories are
 	// potentially not for the same tenancy - which means the data is not
 	// correct
-	if cachedSealFile, ok := d.SealPaths[uint64(massifIndex)]; ok && cachedSealFile != sealFilename {
+	if cachedSealFile, ok := d.SealPaths[uint64(massifIndex)]; ok && !checkLogPathAgainstCache(cachedSealFile, sealFilename) {
 		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedSealFile, sealFilename)
 	}
 
@@ -738,4 +726,16 @@ func dirFromFilepath(path string) (string, error) {
 		return "", fmt.Errorf("%w: %s derived from %s", ErrPathIsNotDir, path, orig)
 	}
 	return path, nil
+}
+
+// checkLogPathAgainstCache checks the given cache log path against the given log Path to ensure they are the same log
+// from the same tenant.
+func checkLogPathAgainstCache(cacheLogPath string, logPath string) bool {
+
+	logPaths := strings.Split(logPath, logTenantPrefix)
+	cachedLogPaths := strings.Split(cacheLogPath, logTenantPrefix)
+
+	// check the cached log path is the same as the given log path
+	return cachedLogPaths[len(cachedLogPaths)-1] == logPaths[len(logPaths)-1]
+
 }
