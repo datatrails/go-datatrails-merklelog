@@ -41,14 +41,14 @@ func FilterBlobs(
 
 	// If there is no visitor, just return all the found items
 	if visit == nil {
-		for i := 0; i < len(r.Items); i++ {
+		for i := range len(r.Items) {
 			newFound = append(newFound, r.Items[i])
 		}
 		return newFound, r.Marker, nil
 	}
 
 	// Ok, there is a visitor. Only return those items for which it returns ok=true
-	for i := 0; i < len(r.Items); i++ {
+	for i := range len(r.Items) {
 		ok, err := visit(ctx, store, r.Items[i])
 		if err != nil {
 			// Note that we return the original marker, if the caller wants to
@@ -95,7 +95,7 @@ func EnumerateIdentifiedPaths(
 		return nil, marker, err
 	}
 
-	for i := 0; i < len(r.Items); i++ {
+	for i := range len(r.Items) {
 		id, err := parseID(*r.Items[i].Name)
 		if err != nil {
 			// This is a situation where the paths to the blobs are invalid.

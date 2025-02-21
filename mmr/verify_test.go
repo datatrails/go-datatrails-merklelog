@@ -17,7 +17,7 @@ func TestVerifyLeavesIn38(t *testing.T) {
 	mmrMaxSize := db.Next()
 	numLeafs := LeafCount(mmrMaxSize)
 
-	for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
+	for iLeaf := range numLeafs {
 
 		mmrIndex := MMRIndex(iLeaf)
 

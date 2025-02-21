@@ -128,7 +128,7 @@ func PrefixedBlobLastN(
 			copy(tail, tail[n-stale-1:])
 		}
 
-		for i := 0; i < stale; i++ {
+		for i := range stale {
 
 			// stale is also the count of items we are taking from items.
 

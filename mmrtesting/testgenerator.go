@@ -100,7 +100,7 @@ func (g *TestGenerator) GenerateNumberedLeafBatch(tenantIdentity string, base, c
 
 func (g *TestGenerator) GenerateLeafBatch(tenantIdentity string, base, count uint64, gf LeafGenerator) []AddLeafArgs {
 	indexedLeaves := make([]AddLeafArgs, 0, count)
-	for i := uint64(0); i < count; i++ {
+	for i := range count {
 		args := gf(tenantIdentity, base, i)
 		indexedLeaves = append(indexedLeaves, args)
 	}
@@ -115,7 +115,7 @@ func (c *TestGenerator) PadWithNumberedLeaves(data []byte, first, n int) []byte 
 		return data
 	}
 	values := make([]byte, ValueBytes*n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		binary.BigEndian.PutUint32(values[i*ValueBytes+ValueBytes-4:i*ValueBytes+ValueBytes], uint32(first+i))
 	}
 	return append(data, values...)
@@ -165,7 +165,7 @@ func (g *TestGenerator) WordList(count int) []string {
 
 	words := make([]string, 0, count)
 	maxWords := len(g.bipWords)
-	for i := 0; i < count; i++ {
+	for range count {
 		words = append(words, g.bipWords[g.Intn(maxWords)])
 	}
 	return words

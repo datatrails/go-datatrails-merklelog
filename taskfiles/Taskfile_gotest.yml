@@ -39,9 +39,9 @@ tasks:
             -v \
             -coverprofile={{.UNITTEST_DIR}}/main.out \
             ./... \
-            2>&1
+            2>&1 > {{.UNITTEST_DIR}}/main.out
 
-          gocov convert {{.UNITTEST_DIR}}/main.out > {{.UNITTEST_DIR}}/coverage.json
+          # gocov convert {{.UNITTEST_DIR}}/main.out > {{.UNITTEST_DIR}}/coverage.json
 
   go:unit:
     desc: "run unit tests"
@@ -62,6 +62,6 @@ tasks:
             -v \
             -coverprofile={{.UNITTEST_DIR}}/main.out \
             ./... \
-            2>&1
+            2>&1 > {{.UNITTEST_DIR}}/main.out
 
-          gocov convert {{.UNITTEST_DIR}}/main.out > {{.UNITTEST_DIR}}/coverage.json
+          # gocov convert {{.UNITTEST_DIR}}/main.out > {{.UNITTEST_DIR}}/coverage.json

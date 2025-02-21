@@ -84,7 +84,7 @@ func TestLeafCountFirst26(t *testing.T) {
 	var leafCounts []uint64
 
 	// for mmrIndex := uint64(0); mmrIndex < 26; mmrIndex++ {
-	for mmrIndex := uint64(0); mmrIndex < 38; mmrIndex++ {
+	for mmrIndex := range uint64(38) {
 		// i+1 converts from mmrIndex to mmrSize
 		mmrSize := mmrIndex + 1
 		got := LeafCount(mmrSize)
