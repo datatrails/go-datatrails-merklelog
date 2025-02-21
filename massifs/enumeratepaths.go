@@ -42,7 +42,6 @@ func FilterBlobs(
 	// If there is no visitor, just return all the found items
 	if visit == nil {
 		newFound = append(newFound, r.Items...)
-
 		return newFound, r.Marker, nil
 	}
 

@@ -32,7 +32,7 @@ func TestVerifyLeavesIn38Bagged(t *testing.T) {
 
 	verifiedOk := uint64(0)
 	for iLeaf := range numLeafs {
-		// for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
+		// for iLeaf := range uint64(numLeafs) {
 		iNode := MMRIndex(iLeaf)
 
 		proof, err := InclusionProofBagged(mmrSize, db, hasher, iNode)
@@ -64,7 +64,7 @@ func TestVerify38Bagged(t *testing.T) {
 
 	verifiedOk := uint64(0)
 	for iNode := range mmrSize {
-		// for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
+		// for iLeaf := range uint64(numLeafs) {
 		// iNode := MMRIndex(iLeaf)
 
 		proof, err := InclusionProofBagged(mmrSize, db, hasher, iNode)
