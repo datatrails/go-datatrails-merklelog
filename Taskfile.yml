@@ -43,6 +43,12 @@ tasks:
     cmds:
       - task: gobuild:go:build
 
+  build:generate:
+    desc: dummy rune
+    cmds:
+      - |
+        echo "Nothing to do here"
+
   format:
     desc: formats the code correctly
     cmds:
@@ -51,6 +57,7 @@ tasks:
   lint:
     desc: lints the go code
     cmds:
+      - task: codequality:format 
       - task: codequality:lint 
 
   go:modules:

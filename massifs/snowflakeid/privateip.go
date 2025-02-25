@@ -64,7 +64,7 @@ func parseMask(workerCIDR string) (net.IPMask, error) {
 
 // invertIPMask  inverts the mask in place and also returns it
 func invertIPMask(mask net.IPMask) net.IPMask {
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		mask[i] = ^mask[i]
 	}
 	return mask

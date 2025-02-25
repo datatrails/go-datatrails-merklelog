@@ -96,7 +96,7 @@ func TestAncestors(t *testing.T) {
 	massifSize := (2 << massifHeight) - 1
 	fmt.Printf("height: %d, size: %d\n", massifHeight, massifSize)
 
-	for i := uint64(0); i < 255; i++ {
+	for i := range uint64(255) {
 		height := IndexHeight(i)
 		if massifHeight != height {
 			continue
@@ -166,7 +166,7 @@ func topPeakLongHand(pos uint64) uint64 {
 }
 
 func TestTopPeak(t *testing.T) {
-	for i := uint64(0); i < 39; i++ {
+	for i := range uint64(39) {
 		t.Run(fmt.Sprintf("TopPeak(%d)", i), func(t *testing.T) {
 			want := topPeakLongHand(i+1) - 1
 			x := 1<<(BitLength64(i+1)-1) - 2

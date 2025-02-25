@@ -92,7 +92,7 @@ func TestMassifLogEntries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			for massifIndex := uint64(0); massifIndex < 8; massifIndex++ {
+			for massifIndex := range uint64(8) {
 
 				// each blob has a varying (but computable) number of mmr nodes.
 				// massif height just determines how many *leaves* are in a full

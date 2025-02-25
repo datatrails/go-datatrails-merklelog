@@ -38,7 +38,7 @@ func NewGeneratedTestDB(t *testing.T, mmrSize uint64) *testDb {
 		t: t, store: make(map[uint64][]byte),
 	}
 	leafCount := LeafCount(mmrSize)
-	for i := uint64(0); i < leafCount; i++ {
+	for i := range leafCount {
 		_, err := AddHashedLeaf(db, sha256.New(), hashNum(MMRIndex(i)))
 		require.NoError(t, err)
 	}
@@ -72,7 +72,7 @@ func TestGeneratedTestDB(t *testing.T) {
 	db := NewGeneratedTestDB(t, mmrSize)
 
 	ok := uint64(0)
-	for i := uint64(0); i < mmrSize; i++ {
+	for i := range mmrSize {
 		v := canon.mustGet(i)
 		fmt.Printf("|%s|%04d|%04d|\n", hex.EncodeToString(v), i, LeafCount(i))
 		if bytes.Compare(canon.mustGet(i), db.mustGet(i)) != 0 {
