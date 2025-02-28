@@ -169,6 +169,10 @@ func (mc *MassifContext) verifyContext(
 		return nil, err
 	}
 
+	if state.MMRSize > mc.RangeCount() {
+		return nil, fmt.Errorf("%w: MMR size %d < %d", ErrStateSizeExceedsData, mc.RangeCount(), state.MMRSize)
+	}
+
 	switch state.Version {
 	case int(MMRStateVersion1):
 		fallthrough
