@@ -602,13 +602,9 @@ func (d *LogDirCacheEntry) setMassifStart(opts DirCacheOptions, logfile string, 
 		return fmt.Errorf("%w: header=%d, expected=%d", ErrLogFileMassifHeightHeader, ms.MassifHeight, opts.massifHeight)
 	}
 
-	// if we already have a log with the same massifIndex, read from a
-	// *different file*, we error out as the files in directories are
-	// potentially not for the same tenancy - which means the data is not
-	// correct
-	if cachedLogFile, ok := d.MassifPaths[uint64(ms.MassifIndex)]; ok && cachedLogFile != logfile {
-		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedLogFile, logfile)
-	}
+	// Note: If we have a mix of tenant massifs in the same directory we leave
+	// it to log consistency checks to prevent extending or overriting local
+	// files in appropriately.
 
 	// associate filename with the massif index
 	d.MassifPaths[uint64(ms.MassifIndex)] = logfile
