@@ -627,13 +627,9 @@ func (d *LogDirCacheEntry) setSeal(
 	massifIndex uint32, sealFilename string, seal *SealedState,
 ) error {
 
-	// if we already have a log with the same massifIndex, read from a
-	// *different file*, we error out as the files in directories are
-	// potentially not for the same tenancy - which means the data is not
-	// correct
-	if cachedSealFile, ok := d.SealPaths[uint64(massifIndex)]; ok && cachedSealFile != sealFilename {
-		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedSealFile, sealFilename)
-	}
+	// Note: If we have a mix of tenant massifs in the same directory we leave
+	// it to log consistency checks to prevent extending or overriting local
+	// files in appropriately.
 
 	// associate filename with the massif index
 	d.SealPaths[uint64(massifIndex)] = sealFilename
