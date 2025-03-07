@@ -325,11 +325,11 @@ func (mc *MassifContext) GetStackedPeak(peakStackIndex int) ([]byte, error) {
 
 func (mc *MassifContext) peakStackIndex(i uint64) (int, error) {
 	if mc.peakStackMap != nil {
-		i, ok := mc.peakStackMap[i]
+		peakIndex, ok := mc.peakStackMap[i]
 		if !ok {
 			return 0, fmt.Errorf("%w: %d is not in the peak map", ErrAncestorStackInvalid, i)
 		}
-		return i, nil
+		return peakIndex, nil
 	}
 
 	// Because the peakStackMap is relatively expensive to create, we only use
