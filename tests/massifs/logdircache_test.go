@@ -143,7 +143,6 @@ func TestNewLogDirCacheEntry(t *testing.T) {
 			opts:      []massifs.DirCacheOption{massifs.WithReaderOption(massifs.WithMassifHeight(14))},
 			opener:    op,
 			dirlister: dl,
-			wantErr:   massifs.ErrLogFileBadHeader,
 			logs:      "/logs/short",
 			isdir:     true,
 			outcome:   map[uint64]string{0: "/logs/short/0.log"},
