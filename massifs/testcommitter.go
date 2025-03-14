@@ -114,7 +114,7 @@ func (c *TestMinimalCommitter) ContextCommitted(ctx context.Context, tenantIdent
 	}
 
 	subject := TenantMassifBlobPath(tenantIdentity, uint64(mc.Start.MassifIndex))
-	publicKey, err := c.CoseSigner.PublicKey()
+	publicKey, err := c.CoseSigner.LatestPublicKey()
 	if err != nil {
 		return fmt.Errorf("unable to get public key for signing key %w", err)
 	}
