@@ -1,6 +1,7 @@
 package massifs
 
 import (
+	"context"
 	"crypto/ecdsa"
 
 	"github.com/veraison/go-cose"
@@ -11,7 +12,8 @@ import (
 // public key.)
 type IdentifiableCoseSigner interface {
 	cose.Signer
-	PublicKey() (*ecdsa.PublicKey, error)
+	PublicKey(ctx context.Context, kid string) (*ecdsa.PublicKey, error)
+	LatestPublicKey() (*ecdsa.PublicKey, error)
 	KeyIdentifier() string
 	KeyLocation() string
 }

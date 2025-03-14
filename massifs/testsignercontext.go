@@ -63,7 +63,7 @@ func signState(
 	state MMRState,
 ) ([]byte, error) {
 
-	publicKey, err := coseSigner.PublicKey()
+	publicKey, err := coseSigner.LatestPublicKey()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get public key for signing key %w", err)
 	}

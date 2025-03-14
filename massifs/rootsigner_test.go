@@ -395,7 +395,7 @@ func TestRootSigner_Sign1(t *testing.T) {
 			rs := TestNewRootSigner(t, tt.fields.issuer)
 
 			coseSigner := azkeys.NewTestCoseSigner(t, key)
-			pubKey, err := coseSigner.PublicKey()
+			pubKey, err := coseSigner.LatestPublicKey()
 			require.NoError(t, err)
 
 			coseMsg, err := rs.Sign1(coseSigner, coseSigner.KeyIdentifier(), pubKey, tt.args.subject, tt.args.state, tt.args.external)
