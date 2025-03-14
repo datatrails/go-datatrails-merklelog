@@ -36,7 +36,7 @@ func ConsistentRoots(hasher hash.Hash, ifrom uint64, accumulatorfrom [][]byte, p
 
 	roots := [][]byte{}
 
-	for i := 0; i < len(accumulatorfrom); i++ {
+	for i := range accumulatorfrom {
 		// remembering that peaks are 1 based (for now)
 		root := IncludedRoot(hasher, frompeaks[i], accumulatorfrom[i], proofs[i])
 		// The nature of MMR's is that many nodes are committed by the

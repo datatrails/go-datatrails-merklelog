@@ -178,7 +178,7 @@ func newmockblobseries(itemCounts ...int) [][]properties {
 	var iFirstRequestBlob int
 	for _, itemCount := range itemCounts {
 		items := make([]properties, itemCount)
-		for i := 0; i < itemCount; i++ {
+		for i := range itemCount {
 			items[i] = newprops(
 				fmt.Sprintf("blob-%d", iFirstRequestBlob+i),
 				fmt.Sprintf("tag-%d", iFirstRequestBlob+i),
@@ -217,7 +217,7 @@ func (s *mockLastNBlobStore) List(ctx context.Context, opts ...azblob.Option) (*
 	blobs := s.series[s.callCount-1]
 
 	items := make([]*azStorageBlob.BlobItemInternal, len(blobs))
-	for i := 0; i < len(blobs); i++ {
+	for i := range blobs {
 		items[i] = &azStorageBlob.BlobItemInternal{
 			Name:       blobs[i].Name,
 			Properties: &azStorageBlob.BlobPropertiesInternal{},

@@ -12,7 +12,7 @@ import (
 
 func getNodes(db *testDb, iNodes ...uint64) [][]byte {
 	var hashes [][]byte
-	for i := 0; i < len(iNodes); i++ {
+	for i := range iNodes {
 		hashes = append(hashes, db.mustGet(iNodes[i]))
 	}
 	return hashes
@@ -31,7 +31,7 @@ func TestVerifyLeavesIn38Bagged(t *testing.T) {
 	}
 
 	verifiedOk := uint64(0)
-	for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
+	for iLeaf := range numLeafs {
 		// for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
 		iNode := MMRIndex(iLeaf)
 
@@ -63,7 +63,7 @@ func TestVerify38Bagged(t *testing.T) {
 	}
 
 	verifiedOk := uint64(0)
-	for iNode := uint64(0); iNode < mmrSize; iNode++ {
+	for iNode := range mmrSize {
 		// for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
 		// iNode := MMRIndex(iLeaf)
 
@@ -144,7 +144,7 @@ func TestReVerify38ForAllSizesBagged(t *testing.T) {
 	maxMMRSize := db.Next()
 	numLeafs := LeafCount(maxMMRSize)
 
-	for iLeaf := uint64(0); iLeaf < numLeafs; iLeaf++ {
+	for iLeaf := range numLeafs {
 
 		iNode := MMRIndex(iLeaf)
 
