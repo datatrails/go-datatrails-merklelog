@@ -30,6 +30,7 @@ tasks:
     cmds:
       - for: { var: GO_MOD_DIRS, as: MODULE}
         cmd: |
+          set -euo pipefail
           cd $(dirname {{.MODULE}})
           mkdir -p {{.UNITTEST_DIR}}
 
@@ -53,6 +54,7 @@ tasks:
     cmds:
       - for: { var: GO_MOD_DIRS, as: MODULE}
         cmd: |
+          set -euo pipefail
           cd $(dirname {{.MODULE}})
           mkdir -p {{.UNITTEST_DIR}}
 

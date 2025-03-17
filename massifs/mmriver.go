@@ -140,8 +140,6 @@ func NewReceipt(
 	getter verifiedContextGetter,
 ) (*commoncose.CoseSign1Message, error) {
 
-	log := logger.Sugar.FromContext(ctx)
-	defer log.Close()
 	massifIndex := uint32(MassifIndexFromMMRIndex(massifHeight, mmrIndex))
 
 	verified, err := getter.GetVerifiedContext(ctx, tenantIdentity, uint64(massifIndex))
@@ -235,9 +233,5 @@ func NewReceiptBuilder(log logger.Logger, reader azblob.Reader, massifHeight uin
 func (b *ReceiptBuilder) BuildReceipt(
 	ctx context.Context, tenantIdentity string, mmrIndex uint64,
 ) (*commoncose.CoseSign1Message, error) {
-
-	log := b.log.FromContext(ctx)
-	defer log.Close()
-
 	return NewReceipt(ctx, b.massifHeight, tenantIdentity, mmrIndex, &b.massifReader)
 }

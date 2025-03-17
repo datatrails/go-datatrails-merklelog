@@ -11,7 +11,7 @@ replace (
 )
 
 require (
-	github.com/datatrails/go-datatrails-common v0.25.0
+	github.com/datatrails/go-datatrails-common v0.25.2-0.20250318112229-3be5d902b136
 	github.com/datatrails/go-datatrails-merklelog/massifs v0.2.1
 	github.com/datatrails/go-datatrails-merklelog/mmr v0.1.1
 	github.com/stretchr/testify v1.10.0
@@ -47,11 +47,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/ldclabs/cose/go v0.0.0-20221214142927-d22c1cfc2154 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/opentracing-contrib/go-observer v0.0.0-20170622124052-a52f23424492 // indirect
-	github.com/opentracing-contrib/go-stdlib v1.0.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
-	github.com/openzipkin-contrib/zipkin-go-opentracing v0.5.0 // indirect
-	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
@@ -63,6 +59,5 @@ require (
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	google.golang.org/grpc v1.69.0-dev // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

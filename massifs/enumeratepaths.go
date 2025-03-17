@@ -5,7 +5,6 @@ import (
 
 	azStorageBlob "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/datatrails/go-datatrails-common/azblob"
-	"github.com/datatrails/go-datatrails-common/logger"
 )
 
 type VisitFilterResponse func(ctx context.Context, store LogBlobReader, it *azStorageBlob.FilterBlobItem) (bool, error)
@@ -25,8 +24,6 @@ func FilterBlobs(
 	marker azblob.ListMarker,
 	opts ...azblob.Option,
 ) ([]*azStorageBlob.FilterBlobItem, azblob.ListMarker, error) {
-	log := logger.Sugar.FromContext(ctx)
-	defer log.Close()
 
 	opts = append(opts, []azblob.Option{azblob.WithListMarker(marker)}...)
 	r, err := store.FilteredList(ctx, tagsFilter, opts...)
@@ -78,9 +75,6 @@ func EnumerateIdentifiedPaths(
 	marker azblob.ListMarker,
 	opts ...azblob.Option,
 ) ([]string, azblob.ListMarker, error) {
-
-	log := logger.Sugar.FromContext(ctx)
-	defer log.Close()
 
 	opts = append(opts, []azblob.Option{azblob.WithListPrefix(blobPrefixPath), azblob.WithListMarker(marker)}...)
 
