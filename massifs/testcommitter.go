@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/datatrails/go-datatrails-common/azblob"
-	"github.com/datatrails/go-datatrails-common/azkeys"
+	"github.com/datatrails/go-datatrails-common/cose"
 	"github.com/datatrails/go-datatrails-common/logger"
 	"github.com/datatrails/go-datatrails-merklelog/mmr"
 	"github.com/datatrails/go-datatrails-merklelog/mmrtesting"
@@ -37,7 +37,7 @@ type TestMinimalCommitter struct {
 
 	SealIssuer   string
 	RootSigner   RootSigner
-	CoseSigner   *azkeys.TestCoseSigner
+	CoseSigner   *cose.TestCoseSigner
 	SealerPubKey *ecdsa.PublicKey
 }
 
@@ -69,7 +69,7 @@ func NewTestMinimalCommitter(
 		key := TestGenerateECKey(tc.T, elliptic.P256())
 		c.Cfg.SealerKey = &key
 	}
-	c.CoseSigner = azkeys.NewTestCoseSigner(tc.T, *c.Cfg.SealerKey)
+	c.CoseSigner = cose.NewTestCoseSigner(tc.T, *c.Cfg.SealerKey)
 	codec, err := NewRootSignerCodec()
 	require.NoError(tc.T, err)
 	c.RootSigner = NewRootSigner(c.SealIssuer, codec)

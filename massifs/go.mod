@@ -9,7 +9,7 @@ require (
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v0.4.1
-	github.com/datatrails/go-datatrails-common v0.25.0
+	github.com/datatrails/go-datatrails-common v0.26.0
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.10.0
 	github.com/veraison/go-cose v1.1.0
