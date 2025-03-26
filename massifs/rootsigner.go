@@ -103,7 +103,7 @@ type MMRStateReceipts struct {
 // signature commits to a log state, and should only be created and published
 // after checking the consistency between the last signed state and the new one.
 // See merklelog/mmrblobs/logconfirmer.go:LogConfirmer for expected use.
-type RootSigner struct {
+type RootSigner struct { //nolint:recvcheck
 	issuer    string
 	cborCodec commoncbor.CBORCodec
 }

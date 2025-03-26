@@ -30,7 +30,7 @@ type WriteAppendOpener interface {
 	Create(string) (io.WriteCloser, error)
 }
 
-type VerifiedContextReader interface {
+type VerifiedContextReader interface { //nolint:iface
 	GetVerifiedContext(
 		ctx context.Context, tenantIdentity string, massifIndex uint64,
 		opts ...ReaderOption,

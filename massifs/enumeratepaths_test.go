@@ -62,7 +62,7 @@ func TestEnumerateTenants(t *testing.T) {
 			batches: []tenantBatch{{itemCount: 4}, {mixCount: 2, itemCount: 4}}}},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
@@ -155,7 +155,7 @@ func batchSameTenant(g *mmrtesting.TestGenerator, base, responseItemCount int) *
 	}
 }
 
-type testEnumTenantsReader struct {
+type testEnumTenantsReader struct { //nolint:recvcheck
 	batches   []*azblob.ListerResponse
 	nextBatch int
 }

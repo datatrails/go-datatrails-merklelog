@@ -1,6 +1,6 @@
 module github.com/datatrails/go-datatrails-merklelog/tests
 
-go 1.23.0
+go 1.24
 
 // NOTICE: always use replace to refer to the latest repository sources
 
@@ -11,7 +11,7 @@ replace (
 )
 
 require (
-	github.com/datatrails/go-datatrails-common v0.26.0
+	github.com/datatrails/go-datatrails-common v0.26.1-0.20250326110607-95d0c456d4cb
 	github.com/datatrails/go-datatrails-merklelog/massifs v0.2.1
 	github.com/datatrails/go-datatrails-merklelog/mmr v0.1.1
 	github.com/stretchr/testify v1.10.0
