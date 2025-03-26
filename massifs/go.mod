@@ -1,6 +1,6 @@
 module github.com/datatrails/go-datatrails-merklelog/massifs
 
-go 1.23.0
+go 1.24
 
 require (
 	github.com/datatrails/go-datatrails-merklelog/mmr v0.1.1
@@ -9,7 +9,7 @@ require (
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v0.4.1
-	github.com/datatrails/go-datatrails-common v0.26.0
+	github.com/datatrails/go-datatrails-common v0.26.1-0.20250326110607-95d0c456d4cb
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.10.0
 	github.com/veraison/go-cose v1.1.0

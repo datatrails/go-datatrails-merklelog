@@ -125,7 +125,7 @@ func VerifySignedInclusionReceipt(
 	return true, root, nil
 }
 
-type verifiedContextGetter interface {
+type verifiedContextGetter interface { //nolint:iface
 	GetVerifiedContext(
 		ctx context.Context, tenantIdentity string, massifIndex uint64,
 		opts ...ReaderOption,
