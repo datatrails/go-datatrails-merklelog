@@ -28,7 +28,7 @@ type WatchConfig struct {
 	IntervalCount int
 }
 
-type Watcher struct {
+type Watcher struct { //nolint:recvcheck
 	Cfg WatchConfig
 	// these are just for reporting for now
 	LastSince   time.Time

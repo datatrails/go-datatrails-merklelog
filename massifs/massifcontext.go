@@ -70,7 +70,7 @@ var (
 //
 // Massif Root Index      = (1 << h) - 2
 // Massif Last Leaf Index = (1 << h) - h - 1
-type MassifContext struct {
+type MassifContext struct { //nolint:recvcheck
 	LogBlobContext
 	TenantIdentity string
 

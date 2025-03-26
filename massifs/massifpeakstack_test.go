@@ -4,7 +4,6 @@ package massifs
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"fmt"
 	"testing"
@@ -498,7 +497,7 @@ func TestPeakStack_StartNextMassif(t *testing.T) {
 func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 
 	logger.New("INFO")
-	ctx := context.Background()
+	ctx := t.Context()
 	tc, g, _ := NewAzuriteTestContext(t, "TestPeakStack_Height4Massif2to3Size63")
 	committer, err := NewTestMinimalCommitter(
 		TestCommitterConfig{CommitmentEpoch: 1, MassifHeight: 4}, tc, g,
