@@ -20,7 +20,7 @@ type LogTail struct {
 }
 
 // LogTailCollator is used to collate the most recently modified massif blob paths for all tenants in a given time horizon
-type LogTailCollator struct {
+type LogTailCollator struct { //nolint:recvcheck
 	Massifs map[string]LogTail
 	Seals   map[string]LogTail
 }

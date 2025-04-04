@@ -76,7 +76,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 			if !strings.Contains(identifier, tenantId) {
 				continue
 			}
-			mc, err := tc.AzuriteReader.GetMassif(context.TODO(), tenantId, massifIndex)
+			mc, err := tc.AzuriteReader.GetMassif(t.Context(), tenantId, massifIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -369,7 +369,7 @@ func TestLocalMassifReaderGetVerifiedContext(t *testing.T) {
 				reader, err := massifs.NewLocalReader(logger.Sugar, dc)
 				assert.NoError(t, err)
 				_, err = reader.GetVerifiedContext(
-					context.TODO(),
+					t.Context(),
 					tt.args.tenantIdentity,
 					tt.args.massifIndex,
 					append(tt.callOpts, massifs.WithSealGetter(&sg))...)

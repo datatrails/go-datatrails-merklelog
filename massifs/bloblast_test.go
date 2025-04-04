@@ -44,7 +44,7 @@ func TestLastPrefixedBlob(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1, err := LastPrefixedBlob(
-				context.Background(),
+				t.Context(),
 				tt.args.store,
 				"prefix/path/")
 			if (err != nil) != tt.wantErr {
@@ -111,7 +111,7 @@ func TestPrefixedBlobLastN(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, massifCount, err := PrefixedBlobLastN(
-				context.Background(),
+				t.Context(),
 				tt.args.store,
 				"prefix/path/",
 				tt.args.n)
