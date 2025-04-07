@@ -11,7 +11,7 @@ replace (
 )
 
 require (
-	github.com/datatrails/go-datatrails-common v0.26.0
+	github.com/datatrails/go-datatrails-common v0.26.1-0.20250408073233-9e93f9319791
 	github.com/datatrails/go-datatrails-merklelog/massifs v0.2.1
 	github.com/datatrails/go-datatrails-merklelog/mmr v0.1.1
 	github.com/stretchr/testify v1.10.0
@@ -63,6 +63,6 @@ require (
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	google.golang.org/grpc v1.69.0-dev // indirect
+	google.golang.org/grpc v1.70.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
