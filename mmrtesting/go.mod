@@ -3,7 +3,7 @@ module github.com/datatrails/go-datatrails-merklelog/mmrtesting
 go 1.23.0
 
 require (
-	github.com/datatrails/go-datatrails-common v0.26.1-0.20250408073233-9e93f9319791
+	github.com/datatrails/go-datatrails-common v0.27.0
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.10.0
 )

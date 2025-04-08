@@ -11,7 +11,7 @@ replace (
 )
 
 require (
-	github.com/datatrails/go-datatrails-common v0.26.1-0.20250408073233-9e93f9319791
+	github.com/datatrails/go-datatrails-common v0.27.0
 	github.com/datatrails/go-datatrails-merklelog/massifs v0.2.1
 	github.com/datatrails/go-datatrails-merklelog/mmr v0.1.1
 	github.com/stretchr/testify v1.10.0
