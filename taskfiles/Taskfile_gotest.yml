@@ -40,7 +40,6 @@ tasks:
             -coverprofile={{.UNITTEST_DIR}}/main.out \
             ./... \
             2>&1 > {{.UNITTEST_DIR}}/main.out
-
           # gocov convert {{.UNITTEST_DIR}}/main.out > {{.UNITTEST_DIR}}/coverage.json
 
   go:unit:
@@ -63,5 +62,4 @@ tasks:
             -coverprofile={{.UNITTEST_DIR}}/main.out \
             ./... \
             2>&1 > {{.UNITTEST_DIR}}/main.out
-
           # gocov convert {{.UNITTEST_DIR}}/main.out > {{.UNITTEST_DIR}}/coverage.json
