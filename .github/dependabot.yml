@@ -1,32 +1,22 @@
 # refer: https://github.com/dependabot/dependabot-core/blob/main/.github/dependabot.yml
+# Github recommendation is to start scheduled actions at random times AFTER the hour
 version: 2
-registries:
-  github-octocat:
-    type: git
-    url: https://github.com
-    username: x-access-token
-    password: ${{ secrets.DEPENDABOT_PAT }}
-
 updates:
-  # Maintain dependencies for GitHub Actions
+   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
-    registries:
-      - github-octocat
     directory: "/"
     schedule:
-      # Check for updates managed by Composer once a week
       interval: "weekly"
-      day: "sunday"
-      time: "16:00"
+      day: "tuesday"
+      time: "03:12"
+      timezone: "Europe/London"
 
-  # Maintain dependencies for Golang
+  # Maintain dependencies for go.mod
   - package-ecosystem: "gomod"
-    registries:
-      - github-octocat
     directory: "/"
     schedule:
-      # Check for updates managed by Composer once a week
       interval: "weekly"
-      day: "sunday"
-      time: "16:00"
+      day: "tuesday"
+      time: "03:11"
+      timezone: "Europe/London"
 
