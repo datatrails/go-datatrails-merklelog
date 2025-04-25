@@ -10,13 +10,3 @@ updates:
       day: "tuesday"
       time: "03:12"
       timezone: "Europe/London"
-
-  # Maintain dependencies for go.mod
-  - package-ecosystem: "gomod"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "03:11"
-      timezone: "Europe/London"
-
