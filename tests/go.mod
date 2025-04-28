@@ -12,8 +12,8 @@ replace (
 
 require (
 	github.com/datatrails/go-datatrails-common v0.30.0
-	github.com/datatrails/go-datatrails-merklelog/massifs v0.6.0
-	github.com/datatrails/go-datatrails-merklelog/mmr v0.4.0
+	github.com/datatrails/go-datatrails-merklelog/massifs v0.6.1
+	github.com/datatrails/go-datatrails-merklelog/mmr v0.4.1
 	github.com/stretchr/testify v1.10.0
 )
 
@@ -34,7 +34,7 @@ require (
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.3.3 // indirect
-	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.4.0 // indirect
+	github.com/datatrails/go-datatrails-merklelog/mmrtesting v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
