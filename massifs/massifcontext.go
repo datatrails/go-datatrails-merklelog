@@ -325,11 +325,11 @@ func (mc *MassifContext) GetStackedPeak(peakStackIndex int) ([]byte, error) {
 
 func (mc *MassifContext) peakStackIndex(i uint64) (int, error) {
 	if mc.peakStackMap != nil {
-		i, ok := mc.peakStackMap[i]
+		peakIndex, ok := mc.peakStackMap[i]
 		if !ok {
 			return 0, fmt.Errorf("%w: %d is not in the peak map", ErrAncestorStackInvalid, i)
 		}
-		return i, nil
+		return peakIndex, nil
 	}
 
 	// Because the peakStackMap is relatively expensive to create, we only use
@@ -369,10 +369,15 @@ func (mc *MassifContext) Append(value []byte) (uint64, error) {
 // trie. On error, the current data buffer should be discarded entirely (not
 // written back to storage)
 //
+// Params:
+//   - extraBytes - extra bytes that are added to the trie value before idtimestamp. maximum 24 bytes.
+//     any extra bytes above 24 bytes will be truncated.
+//
 // Returns the resulting size of the mmr if the leaf is adds successfully.
 func (mc *MassifContext) AddHashedLeaf(
 	hasher hash.Hash,
 	idTimestamp uint64,
+	extraBytes []byte,
 	logId []byte,
 	appId []byte,
 	value []byte,
@@ -406,7 +411,7 @@ func (mc *MassifContext) AddHashedLeaf(
 	nextLeafIndex := mc.MassifLeafCount()
 
 	// Overwrite the pre-allocated index entry with the index data.
-	SetTrieEntry(mc.Data, mc.IndexStart(), nextLeafIndex, idTimestamp, trieKey)
+	SetTrieEntry(mc.Data, mc.IndexStart(), nextLeafIndex, idTimestamp, extraBytes, trieKey)
 
 	// Save the last id added so that we can guarantee monotonicity (and hence uniqueness for the tenant)
 	mc.setLastIdTimestamp(idTimestamp)

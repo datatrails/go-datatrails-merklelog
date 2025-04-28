@@ -14,6 +14,8 @@ import (
 
 const (
 	DefaultGeneratorTenantIdentity = "tenant/0684984b-654d-4301-ad10-a508126e187d"
+
+	jitterMultipler = 2
 )
 
 func HashWriteUint64(hasher hash.Hash, value uint64) {
@@ -100,7 +102,7 @@ func (g *TestGenerator) GenerateNumberedLeafBatch(tenantIdentity string, base, c
 
 func (g *TestGenerator) GenerateLeafBatch(tenantIdentity string, base, count uint64, gf LeafGenerator) []AddLeafArgs {
 	indexedLeaves := make([]AddLeafArgs, 0, count)
-	for i := uint64(0); i < count; i++ {
+	for i := range count {
 		args := gf(tenantIdentity, base, i)
 		indexedLeaves = append(indexedLeaves, args)
 	}
@@ -115,7 +117,7 @@ func (c *TestGenerator) PadWithNumberedLeaves(data []byte, first, n int) []byte 
 		return data
 	}
 	values := make([]byte, ValueBytes*n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		binary.BigEndian.PutUint32(values[i*ValueBytes+ValueBytes-4:i*ValueBytes+ValueBytes], uint32(first+i))
 	}
 	return append(data, values...)
@@ -124,7 +126,7 @@ func (c *TestGenerator) PadWithNumberedLeaves(data []byte, first, n int) []byte 
 func (g *TestGenerator) SinceLastJitter(noUpdate ...bool) time.Time {
 
 	// the * 2 puts the normal mid point on the ideal rate.
-	ts := g.LastTime.Add(time.Millisecond * time.Duration(g.Float32()*1000.0/float32(g.Cfg.EventRate*2)))
+	ts := g.LastTime.Add(time.Millisecond * time.Duration(g.Float32()*1000.0/float32(g.Cfg.EventRate*jitterMultipler)))
 	if len(noUpdate) == 0 || !noUpdate[0] {
 		g.LastTime = ts
 	}
@@ -165,7 +167,7 @@ func (g *TestGenerator) WordList(count int) []string {
 
 	words := make([]string, 0, count)
 	maxWords := len(g.bipWords)
-	for i := 0; i < count; i++ {
+	for range count {
 		words = append(words, g.bipWords[g.Intn(maxWords)])
 	}
 	return words

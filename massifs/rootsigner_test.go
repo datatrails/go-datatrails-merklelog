@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/datatrails/go-datatrails-common/azkeys"
 	commoncose "github.com/datatrails/go-datatrails-common/cose"
 	_ "github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
@@ -26,7 +25,7 @@ func TestCoseSign1_UnprotectedEncDec(t *testing.T) {
 	key := TestGenerateECKey(t, elliptic.P256())
 	cborCodec, err := NewRootSignerCodec()
 	require.NoError(t, err)
-	coseSigner := azkeys.NewTestCoseSigner(t, key)
+	coseSigner := commoncose.NewTestCoseSigner(t, key)
 	rs := TestNewRootSigner(t, "test-issuer")
 
 	mustMarshalCBOR := func(value any) []byte {
@@ -394,8 +393,8 @@ func TestRootSigner_Sign1(t *testing.T) {
 			key := TestGenerateECKey(t, elliptic.P256())
 			rs := TestNewRootSigner(t, tt.fields.issuer)
 
-			coseSigner := azkeys.NewTestCoseSigner(t, key)
-			pubKey, err := coseSigner.PublicKey()
+			coseSigner := commoncose.NewTestCoseSigner(t, key)
+			pubKey, err := coseSigner.LatestPublicKey()
 			require.NoError(t, err)
 
 			coseMsg, err := rs.Sign1(coseSigner, coseSigner.KeyIdentifier(), pubKey, tt.args.subject, tt.args.state, tt.args.external)

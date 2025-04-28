@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/datatrails/go-datatrails-common/azblob"
-	"github.com/datatrails/go-datatrails-common/azkeys"
+	"github.com/datatrails/go-datatrails-common/cose"
 	"github.com/datatrails/go-datatrails-common/logger"
 	"github.com/datatrails/go-datatrails-merklelog/mmr"
 	"github.com/datatrails/go-datatrails-merklelog/mmrtesting"
@@ -37,7 +37,7 @@ type TestMinimalCommitter struct {
 
 	SealIssuer   string
 	RootSigner   RootSigner
-	CoseSigner   *azkeys.TestCoseSigner
+	CoseSigner   *cose.TestCoseSigner
 	SealerPubKey *ecdsa.PublicKey
 }
 
@@ -69,7 +69,7 @@ func NewTestMinimalCommitter(
 		key := TestGenerateECKey(tc.T, elliptic.P256())
 		c.Cfg.SealerKey = &key
 	}
-	c.CoseSigner = azkeys.NewTestCoseSigner(tc.T, *c.Cfg.SealerKey)
+	c.CoseSigner = cose.NewTestCoseSigner(tc.T, *c.Cfg.SealerKey)
 	codec, err := NewRootSignerCodec()
 	require.NoError(tc.T, err)
 	c.RootSigner = NewRootSigner(c.SealIssuer, codec)
@@ -114,7 +114,7 @@ func (c *TestMinimalCommitter) ContextCommitted(ctx context.Context, tenantIdent
 	}
 
 	subject := TenantMassifBlobPath(tenantIdentity, uint64(mc.Start.MassifIndex))
-	publicKey, err := c.CoseSigner.PublicKey()
+	publicKey, err := c.CoseSigner.LatestPublicKey()
 	if err != nil {
 		return fmt.Errorf("unable to get public key for signing key %w", err)
 	}
@@ -162,7 +162,7 @@ func (c *TestMinimalCommitter) AddLeaves(
 
 	for _, args := range batch {
 
-		_, err = mc.AddHashedLeaf(hasher, args.Id, args.LogId, args.AppId, args.Value)
+		_, err = mc.AddHashedLeaf(hasher, args.Id, args.LogId, args.AppId, nil, args.Value)
 		if errors.Is(err, ErrMassifFull) {
 			_, err = c.committer.CommitContext(ctx, mc)
 			if err != nil {
@@ -181,7 +181,7 @@ func (c *TestMinimalCommitter) AddLeaves(
 
 			// Remember to add the leaf we failed to add above
 			_, err = mc.AddHashedLeaf(
-				hasher, args.Id, args.LogId, args.AppId, args.Value)
+				hasher, args.Id, args.LogId, args.AppId, nil, args.Value)
 			if err != nil {
 				c.log.Infof("AddLeaves: %v", err)
 				return err

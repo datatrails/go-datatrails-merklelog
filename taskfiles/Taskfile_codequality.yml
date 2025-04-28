@@ -24,6 +24,7 @@ tasks:
     cmds:
       - task: format
       - task: lint
+      - task: vulncheck
 
   format:
     desc: "format sources (go fmt)"
@@ -56,6 +57,20 @@ tasks:
           go vet -tags integration,azurite ./...
           golangci-lint --version
           golangci-lint --build-tags integration,azurite -c $CONFIG {{.VERBOSE}} run --timeout 10m ./...
+
+  vulncheck:
+    desc: Vulnerability checks
+    dir: ../
+    vars:
+      GO_MOD_DIRS:
+        sh: find . -type f -name 'go.mod'
+    cmds:
+      - for: { var: GO_MOD_DIRS, as: MODULE}
+        cmd: |
+          NAME=$(basename $(dirname {{.MODULE}}))
+          echo "Vulnerability: $NAME"
+          cd $(dirname {{.MODULE}})
+          go run golang.org/x/vuln/cmd/govulncheck@latest -show verbose ./...
 
   modules:
     desc: Make all go.mod files consistent

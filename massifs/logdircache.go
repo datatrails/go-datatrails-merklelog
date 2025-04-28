@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	ErrMassifFormat                         = errors.New("the file header content is not valid massif data")
 	ErrLogFileNoMagic                       = errors.New("the file is not recognized as a massif")
 	ErrLogFileBadHeader                     = errors.New("a massif file header was to short or badly formed")
 	ErrLogFileMassifHeightHeader            = errors.New("the massif height in the header did not match the expected height")
@@ -287,7 +288,10 @@ func (c *LogDirCache) FindMassifFiles(directory string) error {
 	// and do rough checks if the header looks like it's from a valid log
 	for _, filepath := range entries {
 		_, err := dirEntry.ReadMassifStart(c, filepath)
-		if err != nil && !errors.Is(err, ErrLogFileNoMagic) {
+		// We tollerate ErrMassifFormat here because it is the single error
+		// which indicates "its not a massif file". All other errors pertain to
+		// the expectations of the massif configuration, like massif height
+		if err != nil && !errors.Is(err, ErrMassifFormat) {
 			return err
 		}
 	}
@@ -568,7 +572,8 @@ func (d *LogDirCacheEntry) ReadMassifStart(dirCache DirCache, logfile string) (M
 	// if we read less than 32 bytes we ignore the file completely
 	// as it's not a valid log
 	if i != 32 {
-		return MassifStart{}, ErrLogFileBadHeader
+		// If the provided logfile isn't valid massif data, we always return ErrMassifFormat
+		return MassifStart{}, fmt.Errorf("%w: %v: %s", ErrMassifFormat, ErrLogFileBadHeader, logfile)
 	}
 
 	// unmarshal the header
@@ -579,6 +584,10 @@ func (d *LogDirCacheEntry) ReadMassifStart(dirCache DirCache, logfile string) (M
 	}
 	err = d.setMassifStart(dirCache.Options(), logfile, ms)
 	if err != nil {
+		// If the provided logfile isn't valid massif data, we always return ErrMassifFormat
+		if errors.Is(err, ErrLogFileNoMagic) {
+			return MassifStart{}, fmt.Errorf("%w: %v: %s", ErrMassifFormat, err, logfile)
+		}
 		return MassifStart{}, err
 	}
 
@@ -602,13 +611,9 @@ func (d *LogDirCacheEntry) setMassifStart(opts DirCacheOptions, logfile string, 
 		return fmt.Errorf("%w: header=%d, expected=%d", ErrLogFileMassifHeightHeader, ms.MassifHeight, opts.massifHeight)
 	}
 
-	// if we already have a log with the same massifIndex, read from a
-	// *different file*, we error out as the files in directories are
-	// potentially not for the same tenancy - which means the data is not
-	// correct
-	if cachedLogFile, ok := d.MassifPaths[uint64(ms.MassifIndex)]; ok && cachedLogFile != logfile {
-		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedLogFile, logfile)
-	}
+	// Note: If we have a mix of tenant massifs in the same directory we leave
+	// it to log consistency checks to prevent extending or overriting local
+	// files in appropriately.
 
 	// associate filename with the massif index
 	d.MassifPaths[uint64(ms.MassifIndex)] = logfile
@@ -631,13 +636,9 @@ func (d *LogDirCacheEntry) setSeal(
 	massifIndex uint32, sealFilename string, seal *SealedState,
 ) error {
 
-	// if we already have a log with the same massifIndex, read from a
-	// *different file*, we error out as the files in directories are
-	// potentially not for the same tenancy - which means the data is not
-	// correct
-	if cachedSealFile, ok := d.SealPaths[uint64(massifIndex)]; ok && cachedSealFile != sealFilename {
-		return fmt.Errorf("%w: %s and %s", ErrLogFileDuplicateMassifIndices, cachedSealFile, sealFilename)
-	}
+	// Note: If we have a mix of tenant massifs in the same directory we leave
+	// it to log consistency checks to prevent extending or overriting local
+	// files in appropriately.
 
 	// associate filename with the massif index
 	d.SealPaths[uint64(massifIndex)] = sealFilename

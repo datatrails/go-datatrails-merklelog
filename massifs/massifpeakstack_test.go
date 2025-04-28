@@ -4,7 +4,6 @@ package massifs
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"fmt"
 	"testing"
@@ -59,7 +58,7 @@ func TestPeakStack_popArithmetic(t *testing.T) {
 		{uint64(30)},
 	}
 
-	for massifIndex := uint64(0); massifIndex < 8; massifIndex++ {
+	for massifIndex := range uint64(8) {
 
 		t.Run(fmt.Sprintf("iLeaf:%d", massifIndex), func(t *testing.T) {
 
@@ -498,7 +497,7 @@ func TestPeakStack_StartNextMassif(t *testing.T) {
 func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 
 	logger.New("INFO")
-	ctx := context.Background()
+	ctx := t.Context()
 	tc, g, _ := NewAzuriteTestContext(t, "TestPeakStack_Height4Massif2to3Size63")
 	committer, err := NewTestMinimalCommitter(
 		TestCommitterConfig{CommitmentEpoch: 1, MassifHeight: 4}, tc, g,
@@ -569,7 +568,7 @@ func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 
 	// first check directly in the storate if they are there at all in any order
 
-	for ia = 0; ia < len(ancestors)/ValueBytes; ia++ {
+	for ia = range len(ancestors) / ValueBytes {
 		a = ancestors[ia*ValueBytes : ia*ValueBytes+ValueBytes]
 		if !ok30 && bytes.Equal(a, peakNode30) {
 			ok30 = true

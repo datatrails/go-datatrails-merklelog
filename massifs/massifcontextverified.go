@@ -169,20 +169,32 @@ func (mc *MassifContext) verifyContext(
 		return nil, err
 	}
 
-	if state.Version == int(MMRStateVersion1) {
-		return mc.verifyContextV1(msg, state, options)
+	if state.MMRSize > mc.RangeCount() {
+		return nil, fmt.Errorf("%w: MMR size %d < %d", ErrStateSizeExceedsData, mc.RangeCount(), state.MMRSize)
 	}
-	return mc.verifyContextV0(msg, state, options)
+
+	switch state.Version {
+	case int(MMRStateVersion1):
+		fallthrough
+	case int(MMRStateVersion2):
+		return mc.verifyContextV1V2(msg, state, options)
+	case int(MMRStateVersion0):
+		return mc.verifyContextV0(msg, state, options)
+	}
+	return nil, fmt.Errorf("unsupported MMR state version %d", state.Version)
+
 }
 
-func (mc *MassifContext) verifyContextV1(
+func (mc *MassifContext) verifyContextV1V2(
 	msg *cose.CoseSign1Message, state MMRState, options ReaderOptions,
 ) (*VerifiedContext, error) {
 	var ok bool
 	var err error
 	var peaksB [][]byte
 
-	if state.Version != int(MMRStateVersion1) {
+	// There is no difference between v1 and v2 for the purposes of verification.
+	// We just need to accept both here.
+	if state.Version != int(MMRStateVersion1) && state.Version != int(MMRStateVersion2) {
 		return nil, fmt.Errorf("unsupported MMR state version %d", state.Version)
 	}
 

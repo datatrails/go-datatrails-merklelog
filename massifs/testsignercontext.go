@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/datatrails/go-datatrails-common/azkeys"
 	"github.com/datatrails/go-datatrails-common/cbor"
 	"github.com/datatrails/go-datatrails-common/cose"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,7 @@ import (
 type TestSignerContext struct {
 	Key             ecdsa.PrivateKey
 	RootSigner      RootSigner
-	CoseSigner      *azkeys.TestCoseSigner
+	CoseSigner      *cose.TestCoseSigner
 	RootSignerCodec cbor.CBORCodec
 }
 
@@ -26,7 +25,7 @@ func NewTestSignerContext(t *testing.T, issuer string) *TestSignerContext {
 	s := &TestSignerContext{
 		Key:        key,
 		RootSigner: TestNewRootSigner(t, issuer),
-		CoseSigner: azkeys.NewTestCoseSigner(t, key),
+		CoseSigner: cose.NewTestCoseSigner(t, key),
 	}
 	s.RootSignerCodec, err = NewRootSignerCodec()
 	assert.NoError(t, err)
@@ -58,9 +57,12 @@ func (s *TestSignerContext) SealedState(tenantIdentity string, massifIndex uint6
 
 func signState(
 	rootSigner RootSigner,
-	coseSigner azkeys.IdentifiableCoseSigner, subject string, state MMRState) ([]byte, error) {
+	coseSigner IdentifiableCoseSigner,
+	subject string,
+	state MMRState,
+) ([]byte, error) {
 
-	publicKey, err := coseSigner.PublicKey()
+	publicKey, err := coseSigner.LatestPublicKey()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get public key for signing key %w", err)
 	}

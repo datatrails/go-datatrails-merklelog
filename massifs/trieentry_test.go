@@ -123,6 +123,7 @@ func TestSetLogIndexEntry(t *testing.T) {
 		indexStart  uint64
 		leafIndex   uint64
 		idTimestamp uint64
+		extraBytes  []byte
 		index       []byte
 		before      []byte
 		after       []byte
@@ -138,6 +139,7 @@ func TestSetLogIndexEntry(t *testing.T) {
 				indexStart:  uint64(expectTrieEntryBytes * 2),
 				leafIndex:   1, // *trie* index NOT mmrIndex,
 				idTimestamp: 0x0102030405060708,
+				extraBytes:  []byte(`888888888888888888888888`), // maxiumum size of 24 bytes
 				index:       b64one[:32],
 				before:      b64zero[:32],
 				after:       b64two[:32],
@@ -150,6 +152,20 @@ func TestSetLogIndexEntry(t *testing.T) {
 				indexStart:  uint64(expectTrieEntryBytes * 2),
 				leafIndex:   3, // *trie* index NOT mmrIndex
 				idTimestamp: 0x0102030405060708,
+				extraBytes:  []byte(`8888888888888888888888889999`), // overflow maxiumum size of 24 bytes (should truncate the 9's)
+				index:       b64three[:32],
+				before:      b64two[:32],
+				after:       b64four[:32],
+			},
+		},
+		{
+			name: "get trie index 3, nil extra bytes",
+			args: args{
+				logData:     slices.Concat(b64h0, b64h1, b64zero, b64one, b64two, b64three, b64four),
+				indexStart:  uint64(expectTrieEntryBytes * 2),
+				leafIndex:   3, // *trie* index NOT mmrIndex
+				idTimestamp: 0x0102030405060708,
+				extraBytes:  nil,
 				index:       b64three[:32],
 				before:      b64two[:32],
 				after:       b64four[:32],
@@ -165,7 +181,7 @@ func TestSetLogIndexEntry(t *testing.T) {
 			if tt.args.before == nil && tt.args.after == nil {
 				return
 			}
-			SetTrieEntry(tt.args.logData, tt.args.indexStart, tt.args.leafIndex, tt.args.idTimestamp, b64clear)
+			SetTrieEntry(tt.args.logData, tt.args.indexStart, tt.args.leafIndex, tt.args.idTimestamp, tt.args.extraBytes, b64clear)
 
 			gotBefore := GetTrieKey(tt.args.logData, tt.args.indexStart, tt.args.leafIndex-1)
 			assert.Equal(t, tt.args.before, gotBefore)
@@ -179,6 +195,14 @@ func TestSetLogIndexEntry(t *testing.T) {
 
 			gotId := GetIdtimestamp(tt.args.logData, tt.args.indexStart, tt.args.leafIndex)
 			assert.Equal(t, tt.args.idTimestamp, binary.BigEndian.Uint64(gotId))
+
+			// check the extra bytes
+			gotBytes := GetExtraBytes(tt.args.logData, tt.args.indexStart, tt.args.leafIndex)
+			assert.Equal(t, 24, len(gotBytes)) // make doubley sure we have filled the extra bytes and there is no overflow
+
+			if tt.args.extraBytes != nil {
+				assert.Equal(t, tt.args.extraBytes[0:24], gotBytes)
+			}
 		})
 	}
 }

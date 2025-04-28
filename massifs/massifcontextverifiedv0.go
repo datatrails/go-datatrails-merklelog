@@ -22,6 +22,10 @@ func (mc *MassifContext) verifyContextV0(
 		return nil, fmt.Errorf("unsupported MMR state version %d", state.Version)
 	}
 
+	if state.MMRSize > mc.RangeCount() {
+		return nil, fmt.Errorf("%w: MMR size %d < %d", ErrStateSizeExceedsData, mc.RangeCount(), state.MMRSize)
+	}
+
 	state.LegacySealRoot, err = mmr.GetRoot(state.MMRSize, mc, sha256.New())
 	if err != nil {
 		return nil, err
