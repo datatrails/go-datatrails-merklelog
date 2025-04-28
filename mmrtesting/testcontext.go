@@ -58,7 +58,7 @@ func NewTestContext(t *testing.T, cfg TestConfig) TestContext {
 	}
 	client := c.Storer.GetServiceClient()
 	// Note: we expect a 'already exists' error here and  ignore it.
-	_, _ = client.CreateContainer(context.Background(), container, nil)
+	_, _ = client.CreateContainer(t.Context(), container, nil)
 
 	return c
 }

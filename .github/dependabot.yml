@@ -1,0 +1,12 @@
+# refer: https://github.com/dependabot/dependabot-core/blob/main/.github/dependabot.yml
+# Github recommendation is to start scheduled actions at random times AFTER the hour
+version: 2
+updates:
+   # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "03:12"
+      timezone: "Europe/London"

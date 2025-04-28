@@ -2,101 +2,104 @@ package mmr
 
 import (
 	"bytes"
+	"errors"
 	"hash"
 )
 
-// VerifyConsistency returns true if the mmr log update from mmr a to mmr b is
-// append only.  This means that the new log contains an exact copy of the
-// previous log, with any new nodes appended after. The proof is created by
-// [datatrails/go-datatrails-merklelog/merklelog/mmr/IndexConsistencyProof]
+var (
+	ErrConsistencyCheck = errors.New("consistency check failed")
+)
+
+// CheckConsistency verifies that the current state mmrSizeB is consistent with
+// the provided accumulator for the earlier size A The provided accumulator
+// (peakHashesA) should be taken from a trusted source, typically a signed mmr
+// state.
 //
-// The proof comprises an single path which contains an inclusion proof for each
-// peak node in the old mmr against the new mmr root. As all mmr interior nodes
-// are committed to their mmr position when added, this is sufficient to show
-// the new mmr contains an exact copy of the previous. And so can only be the
-// result of append operations.
-//
-// There is, of course, some redundancy in the path, but accepting that allows
-// re-use of VerifyInclusion for both consistency and inclusion proofs.
-func VerifyConsistency(
-	hasher hash.Hash, peakHashesA [][]byte,
-	proof ConsistencyProof, rootA []byte, rootB []byte) bool {
-
-	// A zero length path not valid, even in the case where the mmr's are
-	// identical (root a == root b)
-	if len(proof.Path) == 0 {
-		return false
-	}
-
-	// There must be something to prove
-	if len(peakHashesA) == 0 {
-		return false
-	}
-
-	// Catch the case where mmr b is exactly mmr a
-	if bytes.Equal(rootA, rootB) {
-		return true
-	}
-
-	// Check the peakHashesA, which will have been retrieved from the updated
-	// log, recreate rootA. rootA should have come from a previous Merkle
-	// Signed Root.
-	if !bytes.Equal(HashPeaksRHS(hasher, peakHashesA), rootA) {
-		return false
-	}
-
-	// Establish the node indices of the peaks in the original mmr A.  Those
-	// peak nodes must be at the same indices in mmr B for the update to be
-	// considered consistent. However, if mmr b has additional entries at all,
-	// some or all of those peaks from A will no longer be peaks in B.
-	peakPositions := Peaks(proof.MMRSizeA)
-
-	var ok bool
-	iPeakHashA := 0
-	path := proof.Path
-	for ; iPeakHashA < len(peakHashesA); iPeakHashA++ {
-
-		// Verify that the peak from A is included in mmr B. As the interior
-		// node hashes commit the node position in the log, this can only
-		// succeed if the peaks are both included and placed in the same
-		// position.
-		nodeHash := peakHashesA[iPeakHashA]
-
-		var proofLen int
-
-		ok, proofLen = VerifyFirstInclusionPath(
-			proof.MMRSizeB, hasher, nodeHash, peakPositions[iPeakHashA]-1,
-			path, rootB)
-		if !ok || proofLen > len(path) {
-			return false
-		}
-		path = path[proofLen:]
-	}
-
-	// Note: only return true if we have verified the complete path.
-	return ok && len(path) == 0
-}
-
-// CheckConsistency is used to check that a new log update is consistent With
-// respect to some previously known root and the current store.
+// See VerifyConsistency for more.
 func CheckConsistency(
 	store indexStoreGetter, hasher hash.Hash,
-	cp ConsistencyProof, rootA []byte) (bool, []byte, error) {
+	mmrSizeA, mmrSizeB uint64, peakHashesA [][]byte) (bool, [][]byte, error) {
 
-	iPeaks := Peaks(cp.MMRSizeA)
-
-	// logger.Sugar.Infof(".... PeakBagRHS: %v", iPeaks)
-	peakHashesA, err := PeakBagRHS(store, hasher, 0, iPeaks)
+	// Obtain the proofs from the current store
+	cp, err := IndexConsistencyProof(store, mmrSizeA-1, mmrSizeB-1)
 	if err != nil {
 		return false, nil, err
 	}
 
-	// logger.Sugar.Infof(".... GetRoot")
-	rootB, err := GetRoot(cp.MMRSizeB, store, hasher)
+	// Obtain the expected resulting peaks from the current store
+	peakHashesB, err := PeakHashes(store, cp.MMRSizeB-1)
 	if err != nil {
 		return false, nil, err
 	}
 
-	return VerifyConsistency(
-		hasher, peakHashesA, cp, rootA, rootB), rootB, nil
+	return VerifyConsistency(hasher, cp, peakHashesA, peakHashesB)
+}
+
+// VerifyConsistency verifies the consistency between two MMR states.
+//
+// The MMR(A) and MMR(B) states are identified by the fields MMRSizeA and
+// MMRSizeB in the proof. peakHashesA and B are the node values corresponding to
+// the MMR peaks of each respective state. The Path in the proof contains the
+// nodes necessary to prove each A-peak reaches a B-peak. The path contains the
+// inclusion proofs for each A-peak in MMR(B).
+//
+//	    MMR(A):[7, 8]      MMR(B):[7, 10, 11]
+//	 2       7                7
+//	       /   \            /   \
+//	 1    3     6          3     6    10
+//	     / \  /  \        / \  /  \   / \
+//	 0  1   2 4   5 8    1   2 4   5 8   9 11
+//
+//		Path MMR(A) -> MMR(B)
+//		7 in MMR(B) -> []
+//		8 in MMR(B) -> [9]
+//		Path = [[], [9]]
+func VerifyConsistency(
+	hasher hash.Hash,
+	cp ConsistencyProof, peaksFrom [][]byte, peaksTo [][]byte) (bool, [][]byte, error) {
+
+	// Get the peaks proven by the consistency proof using the provided peaks
+	// for mmr size A
+	proven, err := ConsistentRoots(hasher, cp.MMRSizeA-1, peaksFrom, cp.Path)
+	if err != nil {
+		return false, nil, err
+	}
+
+	// If all proven nodes match an accumulator peak for MMR(sizeB) then MMR(sizeA)
+	// is consistent with MMR(sizeB). Because both the peaks and the accumulator
+	// peaks are listed in descending order of height this can be accomplished
+	// with a linear scan.
+
+	ito := 0
+	for _, root := range proven {
+
+		if bytes.Equal(peaksTo[ito], root) {
+			continue
+		}
+
+		// If the root does not match the current peak then it must match the
+		// next one down.
+
+		ito += 1
+
+		if ito >= len(peaksTo) {
+			return false, nil, ErrConsistencyCheck
+		}
+
+		if !bytes.Equal(peaksTo[ito], root) {
+			return false, nil, ErrConsistencyCheck
+		}
+	}
+
+	// the accumulator consists of the proven peaks plus any new peaks in peaksTo.
+	// In the draft these new peaks are the 'right-peaks' of the consistency proof.
+	// Here, as ConsistentRoots requires that the peak count for the provided ifrom
+	// matches the number of peaks in peaksFrom, simply returning peaksTo is safe.
+	// Even in the corner case where proven is empty.
+	//
+	// We could do
+	//  proven = append(proven, peaksTo[len(proven):]...)
+	//
+	// But that would be completely redundant given the loop above.
+	return true, peaksTo, nil
 }

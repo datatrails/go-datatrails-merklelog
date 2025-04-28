@@ -20,10 +20,10 @@ type ConsistencyProofLocal struct {
 	PeakIndexB uint64
 }
 
-// IndexProofLocalExtend produces a proof which can verify for two mmr sizes
+// InclusionProofLocalExtend produces a proof which can verify for two mmr sizes
 // It shows that the proof for mmrSizeB is an *extention* of the proof for
 // mmrSizeA.
-func IndexProofLocalExtend(mmrSizeA, mmrSizeB uint64, store indexStoreGetter, i uint64) (ConsistencyProofLocal, error) {
+func InclusionProofLocalExtend(mmrSizeA, mmrSizeB uint64, store indexStoreGetter, i uint64) (ConsistencyProofLocal, error) {
 
 	height := uint64(0)
 

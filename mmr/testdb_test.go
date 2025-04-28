@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"hash"
 	"testing"
@@ -37,8 +38,8 @@ func NewGeneratedTestDB(t *testing.T, mmrSize uint64) *testDb {
 		t: t, store: make(map[uint64][]byte),
 	}
 	leafCount := LeafCount(mmrSize)
-	for i := uint64(0); i < leafCount; i++ {
-		_, err := AddHashedLeaf(db, sha256.New(), hashNum(TreeIndex(i)))
+	for i := range leafCount {
+		_, err := AddHashedLeaf(db, sha256.New(), hashNum(MMRIndex(i)))
 		require.NoError(t, err)
 	}
 	return db
@@ -71,9 +72,10 @@ func TestGeneratedTestDB(t *testing.T) {
 	db := NewGeneratedTestDB(t, mmrSize)
 
 	ok := uint64(0)
-	for i := uint64(0); i < mmrSize; i++ {
+	for i := range mmrSize {
+		v := canon.mustGet(i)
+		fmt.Printf("|%s|%04d|%04d|\n", hex.EncodeToString(v), i, LeafCount(i))
 		if bytes.Compare(canon.mustGet(i), db.mustGet(i)) != 0 {
-			fmt.Printf("%d %d\n", i, LeafCount(i))
 			continue
 		}
 		ok++
@@ -128,10 +130,8 @@ func NewCanonicalTestDB(t *testing.T) *testDb {
 	// 0   0   1 3   4  7   8 10  11 15  16 18  19 22  23   25   26  31  32   34  35   38
 	// .   0 . 1 2 . 3 .4 . 5  6 . 7  8 . 9 10  11 12  13   14   15  16  17   18  19   20
 
-	// XXX: TODO update this for position commitment in interior nodes
 	db := testDb{
 		t: t, store: make(map[uint64][]byte),
-		// next: uint64(19),
 		next: uint64(39),
 	}
 
@@ -237,7 +237,6 @@ func (db *testDb) hashPair(pos, i, j uint64) []byte {
 	if value, err = db.Get(i); err != nil {
 		db.t.Fatalf("index %v not found", i)
 	}
-	// XXX: TODO: position commitment for inner leaves
 	h.Write(value)
 	if value, err = db.Get(j); err != nil {
 		db.t.Fatalf("index %v not found", i)

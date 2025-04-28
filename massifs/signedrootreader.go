@@ -156,7 +156,7 @@ func (s *SignedRootReader) GetSignedRoot(
 // Get the signed tree head (SignedRoot) for the mmr massif.
 //
 // NOTICE: TO VERIFY YOU MUST obtain the mmr root from the log using the
-// MMRState.MMRSize in the returned MMRState. See {@link VerifySignedRoot}
+// MMRState.MMRSize in the returned MMRState. See {@link VerifySignedCheckPoint}
 //
 // This may not be the latest mmr head, but it will be the latest for the
 // argument massifIndex. If the identified massif is complete, the returned SignedRoot

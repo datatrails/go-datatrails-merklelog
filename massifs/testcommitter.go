@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/datatrails/go-datatrails-common/azblob"
-	"github.com/datatrails/go-datatrails-common/azkeys"
+	"github.com/datatrails/go-datatrails-common/cose"
 	"github.com/datatrails/go-datatrails-common/logger"
 	"github.com/datatrails/go-datatrails-merklelog/mmr"
 	"github.com/datatrails/go-datatrails-merklelog/mmrtesting"
@@ -23,9 +23,11 @@ type TestCommitterConfig struct {
 	CommitmentEpoch uint32
 	MassifHeight    uint8
 	SealOnCommit    bool
+	SealerKey       *ecdsa.PrivateKey
+	UseV0Seals      bool
 }
 type TestMinimalCommitter struct {
-	cfg           TestCommitterConfig
+	Cfg           TestCommitterConfig
 	log           logger.Logger
 	g             mmrtesting.TestGenerator
 	tc            mmrtesting.TestContext
@@ -35,8 +37,7 @@ type TestMinimalCommitter struct {
 
 	SealIssuer   string
 	RootSigner   RootSigner
-	CoseSigner   *azkeys.TestCoseSigner
-	SealerKey    *ecdsa.PrivateKey
+	CoseSigner   *cose.TestCoseSigner
 	SealerPubKey *ecdsa.PublicKey
 }
 
@@ -51,7 +52,7 @@ func NewTestMinimalCommitter(
 
 	log := logger.Sugar.WithServiceName("merklebuilderv1")
 	c := TestMinimalCommitter{
-		cfg: cfg,
+		Cfg: cfg,
 		log: logger.Sugar.WithServiceName("TestCommitter"),
 		tc:  tc,
 		g:   g,
@@ -59,14 +60,16 @@ func NewTestMinimalCommitter(
 			MassifCommitterConfig{CommitmentEpoch: cfg.CommitmentEpoch}, log, tc.GetStorer()),
 		leafGenerator: leafGenerator,
 	}
-	if !c.cfg.SealOnCommit {
+	if !c.Cfg.SealOnCommit {
 		return c, nil
 	}
 
 	c.SealIssuer = "seal.datatrails.ai"
-	key := TestGenerateECKey(tc.T, elliptic.P256())
-	c.SealerKey = &key
-	c.CoseSigner = azkeys.NewTestCoseSigner(tc.T, key)
+	if c.Cfg.SealerKey == nil {
+		key := TestGenerateECKey(tc.T, elliptic.P256())
+		c.Cfg.SealerKey = &key
+	}
+	c.CoseSigner = cose.NewTestCoseSigner(tc.T, *c.Cfg.SealerKey)
 	codec, err := NewRootSignerCodec()
 	require.NoError(tc.T, err)
 	c.RootSigner = NewRootSigner(c.SealIssuer, codec)
@@ -75,12 +78,12 @@ func NewTestMinimalCommitter(
 
 func (c *TestMinimalCommitter) GetCurrentContext(
 	ctx context.Context, tenantIdentity string, massifHeight uint8) (MassifContext, error) {
-	return c.committer.GetCurrentContext(ctx, tenantIdentity, c.cfg.MassifHeight)
+	return c.committer.GetCurrentContext(ctx, tenantIdentity, c.Cfg.MassifHeight)
 }
 
 // ContextCommitted seals the current massif context if the context is configure with SealOnCommit
 func (c *TestMinimalCommitter) ContextCommitted(ctx context.Context, tenantIdentity string, mc MassifContext) error {
-	if !c.cfg.SealOnCommit {
+	if !c.Cfg.SealOnCommit {
 		return nil
 	}
 
@@ -88,21 +91,30 @@ func (c *TestMinimalCommitter) ContextCommitted(ctx context.Context, tenantIdent
 	if mmrSize == 0 {
 		return errors.New("no leaves to seal")
 	}
-	root, err := mmr.GetRoot(mmrSize, &mc, sha256.New())
+	peaks, err := mmr.PeakHashes(&mc, mmrSize-1)
 	if err != nil {
 		return err
 	}
 
 	state := MMRState{
+		Version:         int(MMRStateVersion1),
 		MMRSize:         mmrSize,
-		Root:            root,
+		Peaks:           peaks,
 		Timestamp:       time.Now().UnixMilli(),
-		CommitmentEpoch: c.cfg.CommitmentEpoch,
+		CommitmentEpoch: c.Cfg.CommitmentEpoch,
 		IDTimestamp:     mc.GetLastIdTimestamp(),
 	}
 
+	if c.Cfg.UseV0Seals {
+		// downgrade the seal to v0
+		state.LegacySealRoot = mmr.HashPeaksRHS(sha256.New(), peaks)
+		state.Peaks = nil
+		state.Version = int(MMRStateVersion0)
+		// everything else is the same
+	}
+
 	subject := TenantMassifBlobPath(tenantIdentity, uint64(mc.Start.MassifIndex))
-	publicKey, err := c.CoseSigner.PublicKey()
+	publicKey, err := c.CoseSigner.LatestPublicKey()
 	if err != nil {
 		return fmt.Errorf("unable to get public key for signing key %w", err)
 	}
@@ -136,7 +148,7 @@ func (c *TestMinimalCommitter) AddLeaves(
 	if count == 0 {
 		return nil
 	}
-	mc, err := c.committer.GetCurrentContext(ctx, tenantIdentity, c.cfg.MassifHeight)
+	mc, err := c.committer.GetCurrentContext(ctx, tenantIdentity, c.Cfg.MassifHeight)
 	if err != nil {
 		c.log.Infof("AddLeaves: %v", err)
 		return err
@@ -150,7 +162,7 @@ func (c *TestMinimalCommitter) AddLeaves(
 
 	for _, args := range batch {
 
-		_, err = mc.AddHashedLeaf(hasher, args.Id, args.LogId, args.AppId, args.Value)
+		_, err = mc.AddHashedLeaf(hasher, args.Id, args.LogId, args.AppId, nil, args.Value)
 		if errors.Is(err, ErrMassifFull) {
 			_, err = c.committer.CommitContext(ctx, mc)
 			if err != nil {
@@ -161,7 +173,7 @@ func (c *TestMinimalCommitter) AddLeaves(
 			if err != nil {
 				return err
 			}
-			mc, err = c.committer.GetCurrentContext(ctx, tenantIdentity, c.cfg.MassifHeight)
+			mc, err = c.committer.GetCurrentContext(ctx, tenantIdentity, c.Cfg.MassifHeight)
 			if err != nil {
 				c.log.Infof("AddLeaves: %v", err)
 				return err
@@ -169,7 +181,7 @@ func (c *TestMinimalCommitter) AddLeaves(
 
 			// Remember to add the leaf we failed to add above
 			_, err = mc.AddHashedLeaf(
-				hasher, args.Id, args.LogId, args.AppId, args.Value)
+				hasher, args.Id, args.LogId, args.AppId, nil, args.Value)
 			if err != nil {
 				c.log.Infof("AddLeaves: %v", err)
 				return err

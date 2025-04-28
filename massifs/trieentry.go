@@ -23,12 +23,28 @@ import (
 )
 
 const (
-	TrieEntryBytes            = 32 * 2
+
+	/**
+	 * Each Trie Entry is the following:
+	 *
+	 * |----------|-------------|--------------|
+	 * | Trie Key | Extra Bytes | ID Timestamp |
+	 * |----------|-------------|--------------|
+	 * | 32 bytes |  24 bytes   |    8 bytes   |
+	 * |----------|-------------|--------------|
+	 *
+	 * Where Trie Value = Extra Bytes + ID Timestamp
+	 */
+
+	TrieEntryBytes            = 32 * 2 // 32 for trie key and 32 for trie value
 	TrieKeyBytes              = 32
 	TrieKeyEnd                = TrieKeyBytes
 	TrieEntryIdTimestampStart = 32 + 24
 	TrieEntrySnowflakeIDBytes = 8
 	TrieEntryIdTimestampEnd   = TrieEntryIdTimestampStart + TrieEntrySnowflakeIDBytes
+	TrieEntryExtraBytesStart  = 32
+	TrieEntryExtraBytesSize   = 24
+	TrieEntryExtraBytesEnd    = TrieEntryExtraBytesStart + TrieEntryExtraBytesSize
 )
 
 var (
@@ -129,6 +145,20 @@ func GetIdtimestamp(trieData []byte, indexStart uint64, trieIndex uint64) []byte
 	return trieData[idStart:idEnd]
 }
 
+// GetExtraBytes returns the extra bytes corresponding to the given trie index,
+// from the given trie data.
+//
+// extraBytes are part of the trie value, where trieValue = extraBytes + idtimestamp
+//
+// NOTE: trieIndex is equivilent to leafIndex.
+func GetExtraBytes(trieData []byte, indexStart uint64, trieIndex uint64) []byte {
+	trieEntryOffset := TrieEntryOffset(indexStart, trieIndex)
+	extraBytesStart := trieEntryOffset + TrieEntryExtraBytesStart
+	extraBytesEnd := trieEntryOffset + TrieEntryExtraBytesEnd
+
+	return trieData[extraBytesStart:extraBytesEnd]
+}
+
 // SetTrieEntry stores the trie Entry (trieKey + idTimestamp) in the given trie data at the given
 //
 //	trie index.
@@ -137,14 +167,22 @@ func GetIdtimestamp(trieData []byte, indexStart uint64, trieIndex uint64) []byte
 //
 //	for leaves.
 func SetTrieEntry(trieData []byte, indexStart uint64, trieIndex uint64,
-	idTimestamp uint64, trieKey []byte) {
+	idTimestamp uint64, extraBytes []byte, trieKey []byte) {
 
 	trieEntryOffset := TrieEntryOffset(indexStart, trieIndex)
 	copy(trieData[trieEntryOffset:trieEntryOffset+TrieKeyEnd], trieKey)
 
-	idStart := trieEntryOffset + TrieEntryIdTimestampStart
-	idEnd := trieEntryOffset + TrieEntryIdTimestampEnd
-	binary.BigEndian.PutUint64(trieData[idStart:idEnd], idTimestamp)
+	// extra bytes
+	if extraBytes != nil {
+		extraBytesStart := trieEntryOffset + TrieEntryExtraBytesStart
+		extraBytesEnd := trieEntryOffset + TrieEntryExtraBytesEnd
+		copy(trieData[extraBytesStart:extraBytesEnd], extraBytes)
+	}
+
+	// idtimestamp
+	idTimestampStart := trieEntryOffset + TrieEntryIdTimestampStart
+	idTimestampEnd := trieEntryOffset + TrieEntryIdTimestampEnd
+	binary.BigEndian.PutUint64(trieData[idTimestampStart:idTimestampEnd], idTimestamp)
 }
 
 // NewTrieKey creates the trie key value.

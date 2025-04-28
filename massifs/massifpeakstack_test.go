@@ -4,7 +4,6 @@ package massifs
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"fmt"
 	"testing"
@@ -59,7 +58,7 @@ func TestPeakStack_popArithmetic(t *testing.T) {
 		{uint64(30)},
 	}
 
-	for massifIndex := uint64(0); massifIndex < 8; massifIndex++ {
+	for massifIndex := range uint64(8) {
 
 		t.Run(fmt.Sprintf("iLeaf:%d", massifIndex), func(t *testing.T) {
 
@@ -79,7 +78,7 @@ func TestPeakStack_popArithmetic(t *testing.T) {
 
 			lastLeaf := massifIndex*massifLeafCount + massifLeafCount - 1
 			spurHeightLeaf := mmr.SpurHeightLeaf(lastLeaf)
-			iPeak := mmr.TreeIndex(lastLeaf) + spurHeightLeaf
+			iPeak := mmr.MMRIndex(lastLeaf) + spurHeightLeaf
 
 			stackLen := mmr.LeafMinusSpurSum(massifIndex)
 
@@ -498,7 +497,7 @@ func TestPeakStack_StartNextMassif(t *testing.T) {
 func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 
 	logger.New("INFO")
-	ctx := context.Background()
+	ctx := t.Context()
 	tc, g, _ := NewAzuriteTestContext(t, "TestPeakStack_Height4Massif2to3Size63")
 	committer, err := NewTestMinimalCommitter(
 		TestCommitterConfig{CommitmentEpoch: 1, MassifHeight: 4}, tc, g,
@@ -535,7 +534,7 @@ func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 	iBaseLeafNode45 := iPeakNode45 - mmr.IndexHeight(iPeakNode45)
 	iLeaf45 := mmr.LeafCount(iBaseLeafNode45)
 
-	hsz := mmr.HeightSize(uint64(committer.cfg.MassifHeight))
+	hsz := mmr.HeightSize(uint64(committer.Cfg.MassifHeight))
 	hlc := (hsz + 1) / 2
 	mi30 := iLeaf30 / hlc
 	mcPeakNode30, err := massifReader.GetMassif(ctx, tenantIdentity, mi30)
@@ -569,7 +568,7 @@ func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 
 	// first check directly in the storate if they are there at all in any order
 
-	for ia = 0; ia < len(ancestors)/ValueBytes; ia++ {
+	for ia = range len(ancestors) / ValueBytes {
 		a = ancestors[ia*ValueBytes : ia*ValueBytes+ValueBytes]
 		if !ok30 && bytes.Equal(a, peakNode30) {
 			ok30 = true
@@ -595,7 +594,7 @@ func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 	assert.Equal(t, mc3.peakStackMap[iPeakNode30], iStack30)
 	assert.Equal(t, mc3.peakStackMap[iPeakNode45], iStack45)
 
-	proof, err := mmr.IndexProof(mmrSizeB, &mc3, sha256.New(), iPeakNode30)
+	proof, err := mmr.InclusionProofBagged(mmrSizeB, &mc3, sha256.New(), iPeakNode30)
 	require.NoError(t, err)
 
 	peakHash, err := mc3.Get(iPeakNode30)
@@ -603,6 +602,6 @@ func TestPeakStack_Height4Massif2to3Size63(t *testing.T) {
 
 	root, err := mmr.GetRoot(mmrSizeB, &mc3, sha256.New())
 	require.NoError(t, err)
-	ok = mmr.VerifyInclusion(mmrSizeB, sha256.New(), peakHash, 30, proof, root)
+	ok = mmr.VerifyInclusionBagged(mmrSizeB, sha256.New(), peakHash, 30, proof, root)
 	assert.True(t, ok)
 }

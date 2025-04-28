@@ -2,6 +2,7 @@ package mmr
 
 import (
 	"fmt"
+	"math/bits"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,14 +30,14 @@ func TestSpurSum(t *testing.T) {
 	}
 }
 
-func TestTreeIndex(t *testing.T) {
+func TestTreeIndexOld(t *testing.T) {
 
 	treeIndices := []uint64{0, 1, 3, 4, 7, 8, 10, 11, 15, 16, 18, 19, 22, 23, 25, 26}
 	for iLeaf, want := range treeIndices {
 		t.Run(fmt.Sprintf("%d -> %d", iLeaf, want), func(t *testing.T) {
 			var got uint64
-			if got = TreeIndex(uint64(iLeaf)); got != want {
-				t.Errorf("TreeIndex() = %v, want %v", got, treeIndices[iLeaf])
+			if got = TreeIndexOld(uint64(iLeaf)); got != want {
+				t.Errorf("TreeIndexOld() = %v, want %v", got, treeIndices[iLeaf])
 			}
 			fmt.Printf("%d -> %d\n", iLeaf, want)
 		})
@@ -120,16 +121,18 @@ func TestLeafMinusSpurSum(t *testing.T) {
 		t.Run(fmt.Sprintf("%d -> %d", iLeaf, want), func(t *testing.T) {
 			sum := LeafMinusSpurSum(uint64(iLeaf))
 			assert.Equal(t, sum, want)
+			sum2 := uint64(bits.OnesCount64(uint64(iLeaf)))
+			assert.Equal(t, sum, sum2)
 
 			// Test that the stack like property is maintained
 			top := uint64(0)
-			for i := uint64(0); i < uint64(iLeaf); i++ {
+			for i := range uint64(iLeaf) {
 
 				delta := SpurHeightLeaf(i)
 				top -= delta // pop
 				top += 1     // push
 				// fmt.Printf("%02d: %d", i, a)
-				// ancestors := mmr.LeftAncestors(mmr.TreeIndex(i))
+				// ancestors := mmr.LeftAncestors(mmr.MMRIndex(i))
 				// fmt.Printf("%02d: %d %d %d: ", i, top+delta, delta, top)
 				// for _, a := range ancestors {
 				// 	fmt.Printf("%d ", a)

@@ -1,7 +1,6 @@
 package massifs
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/sha256"
@@ -57,10 +56,9 @@ type VerifiedContext struct {
 	// context data against the seal state for the massif. If a previously
 	// trusted state was provided when verification was performed, this state is
 	// also consistent with that.  When configured to use "bagged" peaks for
-	// verification purposes, this will be the bagged root of the mmr up to the
-	// end of the data.  Otherwise, it will be the accumulator state (which is a
-	// series of roots concatenated into a single byte array).
-	ConsistentRoots []byte
+	// verification purposes, this will be the single bagged root of the mmr up to the
+	// end of the data.  Otherwise, it will be the accumulator peaks.
+	ConsistentRoots [][]byte
 }
 
 // checkedVerifiedContextOptions checks the options provided satisfy the common requirements of the reader methods
@@ -157,39 +155,67 @@ func (mc *MassifContext) verifyContext(
 	ctx context.Context, options ReaderOptions,
 ) (*VerifiedContext, error) {
 
+	var err error
+
 	// This checks that any un-committed data is consistent with the latest seal available for the massif
 
 	msg, state, err := options.sealGetter.GetSignedRoot(ctx, mc.TenantIdentity, mc.Start.MassifIndex)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"%w: failed to get seal for massif %d for tenant %s: %v",
-			ErrSealNotFound, mc.Start.MassifIndex, mc.TenantIdentity, WrapBlobNotFound(err))
+		if IsBlobNotFound(err) {
+			return nil, fmt.Errorf(
+				"%w: failed to get seal for massif %d for tenant %s: %v",
+				ErrSealNotFound, mc.Start.MassifIndex, mc.TenantIdentity, WrapBlobNotFound(err))
+		}
+		return nil, err
 	}
 
-	state.Root, err = mmr.GetRoot(state.MMRSize, mc, sha256.New())
+	if state.MMRSize > mc.RangeCount() {
+		return nil, fmt.Errorf("%w: MMR size %d < %d", ErrStateSizeExceedsData, mc.RangeCount(), state.MMRSize)
+	}
+
+	switch state.Version {
+	case int(MMRStateVersion1):
+		fallthrough
+	case int(MMRStateVersion2):
+		return mc.verifyContextV1V2(msg, state, options)
+	case int(MMRStateVersion0):
+		return mc.verifyContextV0(msg, state, options)
+	}
+	return nil, fmt.Errorf("unsupported MMR state version %d", state.Version)
+
+}
+
+func (mc *MassifContext) verifyContextV1V2(
+	msg *cose.CoseSign1Message, state MMRState, options ReaderOptions,
+) (*VerifiedContext, error) {
+	var ok bool
+	var err error
+	var peaksB [][]byte
+
+	// There is no difference between v1 and v2 for the purposes of verification.
+	// We just need to accept both here.
+	if state.Version != int(MMRStateVersion1) && state.Version != int(MMRStateVersion2) {
+		return nil, fmt.Errorf("unsupported MMR state version %d", state.Version)
+	}
+
+	// get the peaks from the local store, we are checking the store against the
+	// latest additions. as we verify the signature below, any changes to the
+	// store will be caught.
+	state.Peaks, err = mmr.PeakHashes(mc, state.MMRSize-1)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to get root from massif %d for tenant %s: %v", ErrSealNotFound, mc.Start.MassifIndex, mc.TenantIdentity, err)
+		return nil, err
 	}
 
-	// NOTICE: The verification uses the public key that is provided on the
-	// message.  If the caller wants to ensure the massif is signed by the
-	// expected key then they must obtain a copy of the public key from a source
-	// they trust and supply it as an option.
-
-	pubKeyProvider := cose.NewCWTPublicKeyProvider(msg)
-
-	if options.trustedSealerPubKey != nil {
-		var remotePub crypto.PublicKey
-		remotePub, _, err = pubKeyProvider.PublicKey()
-		if err != nil {
-			return nil, err
-		}
-		if !options.trustedSealerPubKey.Equal(remotePub) {
-			return nil, ErrRemoteSealKeyMatchFailed
-		}
+	pubKeyProvider, err := mc.sealPublicKeyProvider(msg, options)
+	if err != nil {
+		return nil, err
 	}
 
-	err = VerifySignedRoot(
+	// Ensure the peaks we read from the store are the ones that were signed.
+	// Otherwise we can get caught out by the store tampered after the seal was
+	// created. Of course the seal itself could have been replaced, but at that
+	// point the only defense is an indpendent replica.
+	err = VerifySignedCheckPoint(
 		*options.codec, pubKeyProvider, msg, state, nil,
 	)
 	if err != nil {
@@ -198,10 +224,18 @@ func (mc *MassifContext) verifyContext(
 			ErrSealVerifyFailed, mc.Start.MassifIndex, mc.TenantIdentity, err)
 	}
 
-	var rootB []byte
-	rootB, err = mc.CheckConsistency(state)
+	// This verifies the peaks read from mmrSizeA are consistent with mmrSizeB.
+	ok, peaksB, err = mmr.CheckConsistency(
+		mc, sha256.New(), state.MMRSize, mc.RangeCount(), state.Peaks)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"%w: error verifying accumulator state from massif %d for tenant %s",
+			err, mc.Start.MassifIndex, mc.TenantIdentity)
+	}
+	if !ok {
+		// We don't expect false without error.
+		return nil, fmt.Errorf("%w: failed to verify accumulator state massif %d for tenant %s",
+			mmr.ErrConsistencyCheck, mc.Start.MassifIndex, mc.TenantIdentity)
 	}
 
 	// If the caller has provided a trusted base state, also verify against
@@ -210,17 +244,23 @@ func (mc *MassifContext) verifyContext(
 	// check the remote log is consistent with the log portion they have locally
 	// before replicating the new data.
 	if options.trustedBaseState != nil {
-		rootB2, err := mc.CheckConsistency(*options.trustedBaseState)
+
+		if options.trustedBaseState.Version == int(MMRStateVersion0) {
+			return nil, fmt.Errorf("unsupported MMR state version 0 (you should promote to v1 on demand using mmr.PeakHashes)")
+		}
+
+		ok, _, err = mmr.CheckConsistency(
+			mc, sha256.New(),
+			options.trustedBaseState.MMRSize,
+			mc.RangeCount(),
+			options.trustedBaseState.Peaks)
 		if err != nil {
 			return nil, err
 		}
-		// rootB above will be nil if the new state is the same as the trusted
-		// state, in which case there is no value in getting the root in order
-		// to do the compare.
-		if rootB != nil && !bytes.Equal(rootB, rootB2) {
+		if !ok {
 			return nil, fmt.Errorf(
-				"%w: the root produced for the trusted base state doesn't match the root produced for the seal state fetched from the log",
-				ErrInconsistentState)
+				"%w: the accumulator produced for the trusted base state doesn't match the root produced for the seal state fetched from the log",
+				mmr.ErrConsistencyCheck)
 		}
 	}
 
@@ -228,6 +268,32 @@ func (mc *MassifContext) verifyContext(
 		MassifContext:   *mc,
 		Sign1Message:    *msg,
 		MMRState:        state,
-		ConsistentRoots: rootB,
+		ConsistentRoots: peaksB,
 	}, nil
+}
+
+func (mc *MassifContext) sealPublicKeyProvider(
+	msg *cose.CoseSign1Message, options ReaderOptions,
+) (*cose.CWTPublicKeyProvider, error) {
+
+	var err error
+
+	// NOTICE: The verification uses the public key that is provided on the
+	// message.  If the caller wants to ensure the massif is signed by the
+	// expected key then they must obtain a copy of the public key from a source
+	// they trust and supply it as an option.
+	pubKeyProvider := cose.NewCWTPublicKeyProvider(msg)
+	if options.trustedSealerPubKey == nil {
+		return pubKeyProvider, nil
+	}
+
+	var remotePub crypto.PublicKey
+	remotePub, _, err = pubKeyProvider.PublicKey()
+	if err != nil {
+		return nil, err
+	}
+	if !options.trustedSealerPubKey.Equal(remotePub) {
+		return nil, ErrRemoteSealKeyMatchFailed
+	}
+	return pubKeyProvider, nil
 }

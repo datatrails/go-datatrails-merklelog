@@ -23,7 +23,11 @@ type DirResolver interface {
 	ResolveSealDir(tenantIdentityOrLocalPath string) (string, error)
 }
 type WriteAppendOpener interface {
+	// Open ensures the named file exists and is writable. Writes are appended to any existing content.
 	Open(string) (io.WriteCloser, error)
+	// Create ensures the named file exists, is empty and is writable
+	// If the named file already exists it is truncated
+	Create(string) (io.WriteCloser, error)
 }
 
 type VerifiedContextReader interface {
@@ -183,27 +187,28 @@ func (r *LocalReader) VerifyContext(
 
 // ReplaceVerifiedContext writes the content from the verified remote to the
 // local replica.  is the callers responsibility to ensure the context was
-// verified, and that the writeOpener opens the file in append mode if it
+// verified, and that the writeOpener opens the file in *truncate* mode if it
 // already exists.
 func (r *LocalReader) ReplaceVerifiedContext(
 	vc *VerifiedContext, writeOpener WriteAppendOpener,
 ) error {
 
+	// We are always provided the full massif data, not a delta. So the open
+	// mode is O_TRUNC (empty the file if it exists).  The caller is responsible
+	// for checking the local is consistent with the remote before replacing.
 	logFilename := r.GetMassifLocalPath(vc.TenantIdentity, vc.Start.MassifIndex)
-	err := writeAll(writeOpener, logFilename, vc.Data)
+	err := writeAll(writeOpener.Create, logFilename, vc.Data)
 	if err != nil {
 		return err
 	}
 
 	sealFilename := r.GetSealLocalPath(vc.TenantIdentity, vc.Start.MassifIndex)
-	if err != nil {
-		return err
-	}
+
 	sealBytes, err := vc.Sign1Message.MarshalCBOR()
 	if err != nil {
 		return err
 	}
-	err = writeAll(writeOpener, sealFilename, sealBytes)
+	err = writeAll(writeOpener.Create, sealFilename, sealBytes)
 	if err != nil {
 		return err
 	}
@@ -216,7 +221,8 @@ func (r *LocalReader) ReplaceVerifiedContext(
 	// Note: ensure that the root is *never* written to disc or available in the
 	// cached copy of the seal, so that it always has to be recomputed.
 	state := vc.MMRState
-	state.Root = nil
+	state.LegacySealRoot = nil
+	state.Peaks = nil
 
 	return r.cache.ReplaceSeal(sealFilename, vc.Start.MassifIndex, &SealedState{
 		Sign1Message: vc.Sign1Message,
@@ -400,8 +406,10 @@ func copyCachedMassif(cached *MassifContext) MassifContext {
 	return mc
 }
 
-func writeAll(wo WriteAppendOpener, filename string, data []byte) error {
-	f, err := wo.Open(filename)
+type WriteOpener func(name string) (io.WriteCloser, error)
+
+func writeAll(wo WriteOpener, filename string, data []byte) error {
+	f, err := wo(filename)
 	if err != nil {
 		return err
 

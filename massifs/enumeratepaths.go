@@ -5,7 +5,6 @@ import (
 
 	azStorageBlob "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/datatrails/go-datatrails-common/azblob"
-	"github.com/datatrails/go-datatrails-common/logger"
 )
 
 type VisitFilterResponse func(ctx context.Context, store LogBlobReader, it *azStorageBlob.FilterBlobItem) (bool, error)
@@ -25,8 +24,6 @@ func FilterBlobs(
 	marker azblob.ListMarker,
 	opts ...azblob.Option,
 ) ([]*azStorageBlob.FilterBlobItem, azblob.ListMarker, error) {
-	log := logger.Sugar.FromContext(ctx)
-	defer log.Close()
 
 	opts = append(opts, []azblob.Option{azblob.WithListMarker(marker)}...)
 	r, err := store.FilteredList(ctx, tagsFilter, opts...)
@@ -41,14 +38,13 @@ func FilterBlobs(
 
 	// If there is no visitor, just return all the found items
 	if visit == nil {
-		for i := 0; i < len(r.Items); i++ {
-			newFound = append(newFound, r.Items[i])
-		}
+		newFound = append(newFound, r.Items...)
+
 		return newFound, r.Marker, nil
 	}
 
 	// Ok, there is a visitor. Only return those items for which it returns ok=true
-	for i := 0; i < len(r.Items); i++ {
+	for i := range r.Items {
 		ok, err := visit(ctx, store, r.Items[i])
 		if err != nil {
 			// Note that we return the original marker, if the caller wants to
@@ -80,9 +76,6 @@ func EnumerateIdentifiedPaths(
 	opts ...azblob.Option,
 ) ([]string, azblob.ListMarker, error) {
 
-	log := logger.Sugar.FromContext(ctx)
-	defer log.Close()
-
 	opts = append(opts, []azblob.Option{azblob.WithListPrefix(blobPrefixPath), azblob.WithListMarker(marker)}...)
 
 	var newFound []string
@@ -95,7 +88,7 @@ func EnumerateIdentifiedPaths(
 		return nil, marker, err
 	}
 
-	for i := 0; i < len(r.Items); i++ {
+	for i := range r.Items {
 		id, err := parseID(*r.Items[i].Name)
 		if err != nil {
 			// This is a situation where the paths to the blobs are invalid.
